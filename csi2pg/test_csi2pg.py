@@ -25,4 +25,4 @@ class TestCase(unittest.TestCase):
                 if os.path.isfile(oldfn):
                     stablefn = "%s/%s" % (DATAROOT, fn)
                     os.rename(oldfn, stablefn)
-        self.assertEquals(res, 1)
+        self.assertTrue(res is None)
