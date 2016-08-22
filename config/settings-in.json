@@ -1,0 +1,15 @@
+{"email": {
+	"server": "mailhub.iastate.edu",
+	"from": "akrherz@iastate.edu",
+	"to": ["akrherz+csi@iastate.edu"]
+},
+"ftp": {
+	"sto": {"hostname": "...", "user": "...",	
+			"pass": "..."},
+	"ham": {"hostname": "...", "user": "...",
+			"pass": "..."}
+},
+"dataroot": "{{path}}/examples",
+"dbconn": {"hostname": "iemdb", "dbname":"talltowers",
+		   "dbuser":"tt_script", "dbpass":"changeme"}
+}

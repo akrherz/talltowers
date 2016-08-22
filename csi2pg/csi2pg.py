@@ -158,7 +158,7 @@ import logging.config
 from log_conf import logger_configurator
 
 CONFIG = json.load(
-    open(os.path.dirname(__file__) + "../config/settings.json", 'r'))
+    open(os.path.dirname(__file__) + "/../config/settings.json", 'r'))
 
 # create logger
 logger_config = logger_configurator()
@@ -996,7 +996,7 @@ def b38(xx):
     return yy
 
 
-def decode_filename(fn, dirpath, table_code=table_code):
+def decode_filename(fn, dirpath):
     """
     decodes the file name from the logger
 
@@ -1545,6 +1545,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
 
             if result == "COPY Successful.":
                 logger.debug("moving .bdat file to /consumed: {}".format(fn))
+                chkmkdir(consumed_dir)
                 os.rename(ffn, os.path.join(consumed_dir, fn))
                 logger.debug("deleteing SQL formated file: {}".format(sql_ffn))
                 os.remove(sql_ffn)
@@ -1562,12 +1563,12 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             os.rename(ffn, os.path.join(quarentine_path, fn))
 
 
-def main():
+def main(argv):
     """
     The starting point, when program is called.
     """
     # parse the args, from Command Line
-    args = arg_parse()
+    args = arg_parse(argv)
     # check the args
     (dirpath, fnames, dbconn, dates, delete_datalogger_fn) = arg_check(args)
 
@@ -1588,4 +1589,4 @@ if __name__ == "__main__":
     # envornomental varialbes set during import
     logger = logging.getLogger(__name__)
     logger.info("*"*20 + "  STARTING  " + "*"*20)
-    main()
+    main(sys.argv)
