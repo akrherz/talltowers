@@ -1316,16 +1316,17 @@ def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
     logger = logging.getLogger(__name__)
     logger.info("starting COPY to db for {}".format(os.path.basename(sql_ffn)))
     try:
-        with psycopg2.connect(('host={hostname} dbname={dbname} user={dbuser} '
-                               'password={dbpass}'
-                               ).format(**db)) as conn:
-            logger.debug('connected to database')
-            with conn.cursor() as curs, open(sql_ffn, 'r') as infile:
-                logger.debug('database cursor established')
-                if UTC:
-                    curs.execute("set timezone='UTC';")
-                curs.copy_from(infile, table=table, columns=columns)
-                logger.debug('copyed to database')
+        conn = psycopg2.connect(('host={hostname} dbname={dbname} '
+                                 'user={dbuser} password={dbpass}'
+                                 ).format(**db))
+        logger.debug('connected to database')
+        curs = conn.cursor()
+        infile = open(sql_ffn, 'r')
+        logger.debug('database cursor established')
+        if UTC:
+            curs.execute("set timezone='UTC';")
+        curs.copy_from(infile, table=table, columns=columns)
+        logger.debug('copyed to database')
         return "COPY Successful."
         # return None
     except Exception, e:
