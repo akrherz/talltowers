@@ -760,8 +760,9 @@ def decode_TOB3(ffn, toa5_file):
                                                       fs-subframe_offset)
                                 debugstr += ("\t\tnext minor frame slice of "
                                              "frame [{}:{}]\n"
-                                ).format(subframe_end_ptr - minor_frame_size,
-                                         subframe_end_ptr)
+                                             ).format((subframe_end_ptr -
+                                                       minor_frame_size),
+                                                      subframe_end_ptr)
                                 debugstr += "- "*20
                                 logger.debug(debugstr)
                                 if skip_sub_frame == cnt_sub_frame:
