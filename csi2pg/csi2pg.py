@@ -146,6 +146,7 @@ import struct     # unpacking binary
 import psycopg2   # connect to database
 import ftplib     # deleting file from datalogger
 import json
+import pandas as pd
 
 # email
 import smtplib
@@ -155,7 +156,7 @@ import subprocess
 
 # logging
 import logging.config
-from log_conf import logger_configurator
+from log_conf import logger_configurator  # @UnresolvedImport
 
 # assume we run the script from this directory
 CONFIG = json.load(open("../config/settings.json", 'r'))
@@ -245,6 +246,50 @@ resolution_dict = {
     'Sec100Usec': 100,
     'SecUSec':    10,
 }
+
+# expected file header
+#   used as a check, before importing into database
+analog = ["TIMESTAMP", "RECORD", "AirTC_120m_1", "AirTC_120m_2", "AirTC_80m",
+          "AirTC_40m", "AirTC_20m", "AirTC_10m", "AirTC_5m", "RH_120m_1",
+          "RH_120m_2", "RH_80m", "RH_40m", "RH_20m", "RH_10m", "RH_5m",
+          "BP_80m", "BP_10m", "WS_120m_NWht", "WS_120m_S", "WS_80m_NW",
+          "WS_80m_S", "WS_40m_NWht", "WS_40m_S", "WS_20m_NW", "WS_20m_S",
+          "WS_10m_NWht", "WS_10m_S", "WS_5m_NW", "WS_5m_S", "WindDir_120m_NW",
+          "WindDir_120m_S", "WindDir_80m_NW", "WindDir_80m_S",
+          "WindDir_40m_NW", "WindDir_40m_S", "WindDir_20m_NW",
+          "WindDir_20m_S", "WindDir_10m_NW", "WindDir_10m_S", "WindDir_5m_NW",
+          "WindDir_5m_S"]
+sonic = ["TIMESTAMP", "RECORD", "Ux_120m", "Uy_120m", "Uz_120m", "Ts_120m",
+         "Diag_120m", "Ux_80m", "Uy_80m", "Uz_80m", "Ts_80m", "Diag_80m",
+         "Ux_40m", "Uy_40m", "Uz_40m", "Ts_40m", "Diag_40m", "Ux_20m",
+         "Uy_20m", "Uz_20m", "Ts_20m", "Diag_20m", "Ux_10m", "Uy_10m",
+         "Uz_10m", "Ts_10m", "Diag_10m", "Ux_5m", "Uy_5m", "Uz_5m",
+         "Ts_5m", "Diag_5m"]
+monitor = ["TIMESTAMP", "RECORD", "CR6_BattV", "CR6_PTemp", "BoardTemp_120m",
+           "BoardHumidity_120m", "InclinePitch_120m", "InclineRoll_120m",
+           "BoardTemp_80m", "BoardHumidity_80m", "InclinePitch_80m",
+           "InclineRoll_80m", "BoardTemp_40m", "BoardHumidity_40m",
+           "InclinePitch_40m", "InclineRoll_40m", "BoardTemp_20m",
+           "BoardHumidity_20m", "InclinePitch_20m", "InclineRoll_20m",
+           "BoardTemp_10m", "BoardHumidity_10m", "InclinePitch_10m",
+           "InclineRoll_10m", "BoardTemp_5m", "BoardHumidity_5m",
+           "InclinePitch_5m", "InclineRoll_5m"]
+chk_header = {'analog': analog, 'sonic': sonic, 'monitor': monitor}
+
+# decoding dict for decode_filename()
+table_code = {'S': 'sonic', 'A': 'analog', 'M': 'monitor'}
+
+# database's chn_id code
+#  based on decode_filename()'s file naming convetions
+chn_code = {
+            'sites': {'sto': 1, 'ham': 0},
+            'tables': {'analog': 100, 'sonic': 200, 'monitor': 300}
+            # tens & ones digits of chn_id are based the zero-based column
+            # position in the .dat file
+           }
+
+# for COPYing to dat file
+dat_tablecolumns = {'table': 'dat', 'columns': ('ts', 'chn_id', 'val')}
 
 
 def decode_data_bin(rec, dtl, bl, csi_epoch=csi_epoch):
@@ -917,50 +962,6 @@ def decode_TOB1(ffn, toa5_file):
     logger.debug("TOB1 file ({});  rec_cnt = {}".format(fn, rec_cnt))
     return rec_cnt
 
-# expected file header
-#   used as a check, before importing into database
-analog = ["TIMESTAMP", "RECORD", "AirTC_120m_1", "AirTC_120m_2", "AirTC_80m",
-          "AirTC_40m", "AirTC_20m", "AirTC_10m", "AirTC_5m", "RH_120m_1",
-          "RH_120m_2", "RH_80m", "RH_40m", "RH_20m", "RH_10m", "RH_5m",
-          "BP_80m", "BP_10m", "WS_120m_NWht", "WS_120m_S", "WS_80m_NW",
-          "WS_80m_S", "WS_40m_NWht", "WS_40m_S", "WS_20m_NW", "WS_20m_S",
-          "WS_10m_NWht", "WS_10m_S", "WS_5m_NW", "WS_5m_S", "WindDir_120m_NW",
-          "WindDir_120m_S", "WindDir_80m_NW", "WindDir_80m_S",
-          "WindDir_40m_NW", "WindDir_40m_S", "WindDir_20m_NW",
-          "WindDir_20m_S", "WindDir_10m_NW", "WindDir_10m_S", "WindDir_5m_NW",
-          "WindDir_5m_S"]
-sonic = ["TIMESTAMP", "RECORD", "Ux_120m", "Uy_120m", "Uz_120m", "Ts_120m",
-         "Diag_120m", "Ux_80m", "Uy_80m", "Uz_80m", "Ts_80m", "Diag_80m",
-         "Ux_40m", "Uy_40m", "Uz_40m", "Ts_40m", "Diag_40m", "Ux_20m",
-         "Uy_20m", "Uz_20m", "Ts_20m", "Diag_20m", "Ux_10m", "Uy_10m",
-         "Uz_10m", "Ts_10m", "Diag_10m", "Ux_5m", "Uy_5m", "Uz_5m",
-         "Ts_5m", "Diag_5m"]
-monitor = ["TIMESTAMP", "RECORD", "CR6_BattV", "CR6_PTemp", "BoardTemp_120m",
-           "BoardHumidity_120m", "InclinePitch_120m", "InclineRoll_120m",
-           "BoardTemp_80m", "BoardHumidity_80m", "InclinePitch_80m",
-           "InclineRoll_80m", "BoardTemp_40m", "BoardHumidity_40m",
-           "InclinePitch_40m", "InclineRoll_40m", "BoardTemp_20m",
-           "BoardHumidity_20m", "InclinePitch_20m", "InclineRoll_20m",
-           "BoardTemp_10m", "BoardHumidity_10m", "InclinePitch_10m",
-           "InclineRoll_10m", "BoardTemp_5m", "BoardHumidity_5m",
-           "InclinePitch_5m", "InclineRoll_5m"]
-chk_header = {'analog': analog, 'sonic': sonic, 'monitor': monitor}
-
-# decoding dict for decode_filename()
-table_code = {'S': 'sonic', 'A': 'analog', 'M': 'monitor'}
-
-# database's chn_id code
-#  based on decode_filename()'s file naming convetions
-chn_code = {
-            'sites': {'sto': 1000, 'ham': 2000},
-            'tables': {'analog': 100, 'sonic': 200, 'monitor': 300}
-            # tens & ones digits of chn_id are based the zero-based column
-            # position in the .dat file
-           }
-
-# for COPYing to dat file
-dat_tablecolumns = {'table': 'dat', 'columns': ('ts', 'chn_id', 'val')}
-
 
 def b38(xx):
     """
@@ -1257,37 +1258,29 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
     sql_ffn = os.path.join(dirpath, fn_basename+'.sql')
     # chn_id encoding
     site_number = chn_code['sites'][site]
-    table_number = chn_code['tables'][table]
-    # get header & compare to expected header
-    with open(ffn, 'r') as rf:
-        for _ in range(2):
-            header = rf.readline()
-    header_list = header.replace('"', "").strip('\n').strip('\r').split(',')
-    if header_list != chk_header[table]:
-        logger.error(("TOA5 header does not match database channel table "
-                      "for {}  Aborting.").format(ffn))
-        return None
-    # convert TOA5 data file to SQL file.
-    with open(ffn, 'r') as rf, open(sql_ffn, 'w') as wf:
-        for _ in range(4):
-            next(rf)  # skip headers
-        for row in rf:
-            rowlist = row.replace('"', "").strip('\n').strip('\r').split(',')
-            ts = rowlist[0]
-            ts_format = ('%Y-%m-%d %H:%M:%S.%f'
-                         if '.' in ts else '%Y-%m-%d %H:%M:%S')
-            dts = datetime.datetime.strptime(ts, ts_format)
-            # record number is not stored in database.
-            for nn, val in zip(range(2, len(rowlist)), rowlist[2:]):
-                wf.write(("{}\t{}\t{}\n"
-                          ).format(dts, site_number + table_number + nn,
-                                   float(val)))
-    # return full file name for SQL formatted file
-    return sql_ffn
+
+    df = pd.read_csv(ffn, skiprows=[0, 2, 3], header=0,
+                     na_values=['NAN', '-INF', 'INF'])
+    # add site
+    df['tower'] = site_number
+    df.drop('RECORD', axis=1, inplace=True)
+    df['valid'] = pd.to_datetime(df['TIMESTAMP'])
+    df.drop('TIMESTAMP', axis=1, inplace=True)
+
+    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep='\N')
+    tmin = df['valid'].min()
+    tmax = df['valid'].max()
+    if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
+        logger.exception(("TOA5 file: {} has invalid time domain: {} {}"
+                          ).format(ffn, tmin, tmax))
+    if table != 'monitor':
+        table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
+    else:
+        table = "data_monitor"
+    return sql_ffn, table, df.columns
 
 
-def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
-                    UTC=True):
+def copy2db_execute(sql_ffn, db, table, columns, UTC=True):
     """
     Copy SQL formatted data file to database.  intended for use immedaitly
         after sql_ffn = parse_TOA5_sql(ffn)
@@ -1336,7 +1329,7 @@ def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
         logger.debug('copyed to database')
         return "COPY Successful."
         # return None
-    except Exception, e:
+    except Exception as e:
         logger.exception('Failed to execute COPY for {}'.format(sql_ffn))
         return 'Failed to execute COPY for ' + sql_ffn + '; ErrMsg: ' + str(e)
 
@@ -1541,16 +1534,11 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             os.rename(toa5_file, toa5_file + '.dat')
             # ------------------------------------------------------------------------
             # parse resultant TOA5 file to SQL file
-            sql_ffn = parse_TOA5_sql(toa5_file + '.dat')
+            sql_ffn, table, columns = parse_TOA5_sql(toa5_file + '.dat')
             # copy SQL file to database
-            result = copy2db_execute(sql_ffn, dbconn)
+            result = copy2db_execute(sql_ffn, dbconn, table, columns)
 
-            if result is not None:
-                logger.info(result)
-            else:
-                logger.info('COPIED \t ', os.path.basename(sql_ffn))
-            # remove files
-
+            logger.info(result)
             if result == "COPY Successful.":
                 logger.debug("moving .bdat file to /consumed: {}".format(fn))
                 chkmkdir(consumed_dir)
@@ -1563,6 +1551,9 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                                  "associated with: {}"
                                  ).format(fn))
                     ftp_del(fn)
+            else:
+                # trigger quarentine
+                _ = 1 / 0
         except:
             quarentine_path = os.path.join(dirpath, 'quarentine')
             chkmkdir(quarentine_path)
