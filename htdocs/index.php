@@ -45,9 +45,9 @@ $CONFIG = json_decode(file_get_contents(dirname(__FILE__)."/../config/settings.j
 	<p>Query the <b>Channels</b> table.</p>
 
 	<?php
-		$host=$CONFIG["dbconn"]["hostname"];
+		$host=$CONFIG["webdbconn"]["hostname"];
 		$user="tt_web";
-		$pass=$CONFIG["dbconn"]["dbpass"];
+		$pass=$CONFIG["webdbconn"]["dbpass"];
 		$db="talltowers";
 		$link=pg_Connect("host=$host dbname=$db user=$user password=$pass");
 		$query1="SELECT * FROM Channels WHERE site='story' AND height=40";

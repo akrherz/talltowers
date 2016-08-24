@@ -12,5 +12,7 @@
 "dataroot": "{{path}}/examples",
 "plotsdir": "/var/www/plots",
 "dbconn": {"hostname": "iemdb", "dbname":"talltowers",
-		   "dbuser":"tt_script", "dbpass":"changeme"}
+		   "dbuser":"tt_script", "dbpass":"changeme"},
+"webdbconn": {"hostname": "iemdb", "dbname":"talltowers",
+              "dbuser":"tt_web", "dbpass":"changeme"}
 }
