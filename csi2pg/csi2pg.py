@@ -1559,9 +1559,9 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                 os.remove(sql_ffn)
                 # delete file on CR6 ???
                 if delete_datalogger_fn:
-                    logger.debug(("deleteing DataLogger file "
-                                  "associated with: {}"
-                                  ).format(fn))
+                    logger.info(("deleteing DataLogger file "
+                                 "associated with: {}"
+                                 ).format(fn))
                     ftp_del(fn)
         except:
             quarentine_path = os.path.join(dirpath, 'quarentine')
