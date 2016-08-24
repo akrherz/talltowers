@@ -10,6 +10,7 @@
 			"pass": "..."}
 },
 "dataroot": "{{path}}/examples",
+"plotsdir": "/var/www/plots",
 "dbconn": {"hostname": "iemdb", "dbname":"talltowers",
 		   "dbuser":"tt_script", "dbpass":"changeme"}
 }
