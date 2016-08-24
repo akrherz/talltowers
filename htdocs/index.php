@@ -1,3 +1,7 @@
+<?php
+date_default_timezone_set('UTC');
+$CONFIG = json_decode(file_get_contents(dirname(__FILE__)."/../config/settings.json"), TRUE);
+?>
 <html>
 
 <head>
@@ -41,12 +45,11 @@
 	<p>Query the <b>Channels</b> table.</p>
 
 	<?php
-		$host="192.168.0.2";
-		$port="5432";
+		$host=$CONFIG["dbconn"]["hostname"];
 		$user="tt_web";
-		$pass="...";
+		$pass=$CONFIG["dbconn"]["dbpass"];
 		$db="talltowers";
-		$link=pg_Connect("host=$host port=$port dbname=$db user=$user password=$pass");
+		$link=pg_Connect("host=$host dbname=$db user=$user password=$pass");
 		$query1="SELECT * FROM Channels WHERE site='story' AND height=40";
 		echo"<p>query1: <strong>",$query1,"</strong></p>";
 		$result=pg_exec($link,$query1);
@@ -94,12 +97,7 @@
 		the preceeding minute (and not recycling the window at the minute).
 	</p>
 	<?php
-		$host="192.168.0.2";
-		$port="5432";
-		$user="tt_web";
-		$pass="...";
-		$db="talltowers";
-		$link=pg_Connect("host=$host port=$port dbname=$db user=$user password=$pass");
+		$link=pg_Connect("host=$host dbname=$db user=$user password=$pass");
 		$time=date('Y-m-d H:i:s',time() - 7200);
 		$query2="WITH rolling AS (SELECT ts, val, avg(val) OVER(ORDER BY ts ROWS BETWEEN 3 preceding AND current row) AS mean3 FROM dat WHERE ts > '$time'::timestamp with time zone AND chn_id=1122 ORDER BY ts) SELECT date_trunc('minute', ts), avg(val), stddev(val), min(val), max(val), max(mean3) AS max3sec FROM rolling GROUP BY date_trunc('minute', ts) ORDER BY date_trunc('minute', ts) ASC Limit 240";
 		echo"<p>query2: <strong>",$query2,"</strong></p>";

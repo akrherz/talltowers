@@ -18,8 +18,7 @@ matplotlib.use('Agg')  # Must be before importing matplotlib.pyplot.
 import matplotlib.pyplot as plt  # NOPEP8
 import matplotlib.dates as mdates  # NOPEP8
 
-CONFIG = json.load(
-    open(os.path.dirname(__file__) + "/../config/settings.json", 'r'))
+CONFIG = json.load(open("../config/settings.json", 'r'))
 
 # === INPUTS ===
 
@@ -42,38 +41,35 @@ for key, value in plot_dict.items():
         time_now.astimezone(tz.gettz('US/Central')), "%d-%b-%y %H:%M %Z")
     dfs = []
     for site in site_list:
-        try:
-            conn = psycopg2.connect(('host={hostname} dbname={dbname} '
-                                     'user={dbuser} password={dbpass}'
-                                     ).format(CONFIG['dbconn']))
-            cur = conn.cursor()
-            for chn in value['channels']:
-                # get chn_id
-                cur.execute("""SELECT chn_id
-                               FROM Channels
-                               WHERE site = %s
-                               AND header = %s;""", (site, chn))
-                chn_id = cur.fetchall()[0][0]
-                # get data
-                #   note: datetime.datetime objects with a tz, will be
-                #       converted to postgres's "TIMESTAMPTZ" format
-                cur.execute("""SELECT date_trunc('minute', ts), AVG(val)
-                            FROM Dat
-                            WHERE chn_id = %s
-                            AND ts > %s
-                            AND ts < %s
-                            GROUP BY date_trunc('minute', ts)
-                            ORDER BY date_trunc('minute', ts);
-                            """, (chn_id, time_data_start, time_now))
-                data = cur.fetchall()
-                # make pandas.DataFrame object
-                df_raw = pd.DataFrame(data, columns=['ts',
-                                                     chn]).set_index('ts')
-                df_raw.columns = ["_".join([site.capitalize(),
-                                            df_raw.columns[0]])]
-                dfs.append(df_raw)
-        except Exception as e:
-            break
+        conn = psycopg2.connect(('host={hostname} dbname={dbname} '
+                                 'user={dbuser} password={dbpass}'
+                                 ).format(**CONFIG['dbconn']))
+        cur = conn.cursor()
+        for chn in value['channels']:
+            # get chn_id
+            cur.execute("""SELECT chn_id
+                           FROM Channels
+                           WHERE site = %s
+                           AND header = %s;""", (site, chn))
+            chn_id = cur.fetchall()[0][0]
+            # get data
+            #   note: datetime.datetime objects with a tz, will be
+            #       converted to postgres's "TIMESTAMPTZ" format
+            cur.execute("""SELECT date_trunc('minute', ts), AVG(val)
+                        FROM Dat
+                        WHERE chn_id = %s
+                        AND ts > %s
+                        AND ts < %s
+                        GROUP BY date_trunc('minute', ts)
+                        ORDER BY date_trunc('minute', ts);
+                        """, (chn_id, time_data_start, time_now))
+            data = cur.fetchall()
+            # make pandas.DataFrame object
+            df_raw = pd.DataFrame(data, columns=['ts',
+                                                 chn]).set_index('ts')
+            df_raw.columns = ["_".join([site.capitalize(),
+                                        df_raw.columns[0]])]
+            dfs.append(df_raw)
     # ===================== PLOT DATA, IF ANY =======================
     # verify that data is present
     if any([len(dfx) > 0 for dfx in dfs]):
@@ -132,3 +128,4 @@ for key, value in plot_dict.items():
     # save figure
     ffn_plot = os.path.join(plot_dir, value['ffn_plot'])
     fig.savefig(ffn_plot, format='png')
+    plt.close()

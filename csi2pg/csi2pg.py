@@ -157,8 +157,8 @@ import subprocess
 import logging.config
 from log_conf import logger_configurator
 
-CONFIG = json.load(
-    open(os.path.dirname(__file__) + "/../config/settings.json", 'r'))
+# assume we run the script from this directory
+CONFIG = json.load(open("../config/settings.json", 'r'))
 
 # create logger
 logger_config = logger_configurator()
@@ -854,7 +854,7 @@ def decode_TOB1(ffn, toa5_file):
     header = []
     with open(ffn, "rb") as rf:
         # read the 5 header lines into variable and then parse it.
-        for ii in range(5):
+        for _ in range(5):
             header.append((rf.readline().replace('"', "")
                            .replace("\r\n", "").replace("\n", "").split(",")))
         # extract header information
@@ -1088,7 +1088,7 @@ def directory_traverse(dirpath, dates):
                                                            date_end))
     dir_list = []
     startinglevel = dirpath.count(os.sep)
-    for top, dirs, files in os.walk(dirpath):
+    for top, _, _ in os.walk(dirpath):
         if top.count(os.sep) - startinglevel == 3:
             dir_list.append(os.path.relpath(top, dirpath))
     dir_list.sort()
@@ -1202,6 +1202,9 @@ def ftp_del(fn):
     fn_logger = fn[3:9]
     # identfiy which logger the file comes from
     cr6 = CONFIG['ftp'][fn[0:3]]
+    if cr6['hostname'] == '...':
+        logger.info("Skipping ftp_del since hostname is ...")
+        return
     # log into dataloggers FTP service, navigate to direcotry, delete file
     site = ftplib.FTP(cr6['hostname'], cr6['user'], cr6['pass'])
     site.set_pasv(False)
@@ -1249,14 +1252,14 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
     fn = os.path.basename(ffn)
     logger.info("starting to parse TOA5 file: {}".format(fn))
     fn_basename = os.path.splitext(fn)[0]
-    site, table, timestamp = fn_basename.split("_")
+    site, table, _ = fn_basename.split("_")
     sql_ffn = os.path.join(dirpath, fn_basename+'.sql')
     # chn_id encoding
     site_number = chn_code['sites'][site]
     table_number = chn_code['tables'][table]
     # get header & compare to expected header
     with open(ffn, 'r') as rf:
-        for ii in range(2):
+        for _ in range(2):
             header = rf.readline()
     header_list = header.replace('"', "").strip('\n').strip('\r').split(',')
     if header_list != chk_header[table]:
@@ -1265,7 +1268,7 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
         return None
     # convert TOA5 data file to SQL file.
     with open(ffn, 'r') as rf, open(sql_ffn, 'w') as wf:
-        for ii in range(4):
+        for _ in range(4):
             next(rf)  # skip headers
         for row in rf:
             rowlist = row.replace('"', "").strip('\n').strip('\r').split(',')
@@ -1284,7 +1287,7 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
 
 def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
                     UTC=True):
-    '''
+    """
     Copy SQL formatted data file to database.  intended for use immedaitly
         after sql_ffn = parse_TOA5_sql(ffn)
 
@@ -1312,7 +1315,7 @@ def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
     requires psycopg2 version > 2.5, whos cursors are context managers, and
         can be used with "with" blocks.
 
-    '''
+    """
     logger = logging.getLogger(__name__)
     logger.info("starting COPY to db for {}".format(os.path.basename(sql_ffn)))
     try:
@@ -1326,6 +1329,9 @@ def copy2db_execute(sql_ffn, db, table='dat', columns=('ts', 'chn_id', 'val'),
         if UTC:
             curs.execute("set timezone='UTC';")
         curs.copy_from(infile, table=table, columns=columns)
+        curs.close()
+        conn.commit()
+        conn.close()
         logger.debug('copyed to database')
         return "COPY Successful."
         # return None
@@ -1559,7 +1565,8 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
         except:
             quarentine_path = os.path.join(dirpath, 'quarentine')
             chkmkdir(quarentine_path)
-            logger.exception("{}  FAILED.  Moved to 'quarentine'".format(fn))
+            logger.exception(("{}  FAILED.  Moved to '{}'"
+                              ).format(fn, quarentine_path))
             # move file
             os.rename(ffn, os.path.join(quarentine_path, fn))
 
@@ -1590,4 +1597,4 @@ if __name__ == "__main__":
     # envornomental varialbes set during import
     logger = logging.getLogger(__name__)
     logger.info("*"*20 + "  STARTING  " + "*"*20)
-    main(sys.argv)
+    main(sys.argv[1:])

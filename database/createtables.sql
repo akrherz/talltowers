@@ -17,6 +17,7 @@ CREATE TABLE channels (
   site varchar(8) NOT NULL,
   unit varchar(4)
 );
+GRANT SELECT on channels to tt_script,tt_web;
 
 COMMENT ON TABLE channels IS 'This table provides the chn_id to select from the dat table.';
 COMMENT ON COLUMN channels.chn_id IS 'primary key. encoded with site as thousands unit, datatable as hundreds, and tens+ones are the column number in .dat files.';
@@ -46,7 +47,8 @@ COMMENT ON COLUMN dat.val IS 'the actual data sotred as 4-Byte floats.';
 
 
 -- grant insert to "tt_script"
-GRANT INSERT ON TABLE dat TO tt_script;
+GRANT INSERT,SELECT ON TABLE dat TO tt_script;
+GRANT SELECT on TABLE dat to tt_web;
 
 
 -- copy channels data
