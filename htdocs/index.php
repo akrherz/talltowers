@@ -1,154 +1,128 @@
 <?php
 date_default_timezone_set('UTC');
 $CONFIG = json_decode(file_get_contents(dirname(__FILE__)."/../config/settings.json"), TRUE);
+
+function get_vnames($vname, $level){
+	if ($vname == 'ws'){
+		$v1 = sprintf("ws_%sm_s", $level);
+		$extra = "";
+		if ($level == 10 || $level == 40 || $level == 120) $extra = "ht";
+		$v2 = sprintf("ws_%sm_nw%s", $level, $extra);
+		return Array($v1, $v2);
+	} else if ($vname == 'winddir'){
+		$v1 = sprintf("winddir_%sm_s", $level);
+		$v2 = sprintf("winddir_%sm_nw", $level);
+		return Array($v1, $v2);
+	} else if ($level == 120 && ($vname == 'airtc' || $vname == 'rh')){
+		$v1 = sprintf("%s_%sm_1", $vname, $level);
+		$v2 = sprintf("%s_%sm_2", $vname, $level);
+		return Array($v1, $v2);
+	}
+	$v1 = sprintf("%s_%sm", $vname, $level);
+	return Array($v1);
+}
+function pp($val){
+	if ($val == null) return "M";
+	return sprintf("%.2f", $val);
+}
+function get_last($conn, $table, $tower){
+	$rs = pg_query($conn, "SELECT * from data_$table WHERE tower = $tower and ".
+		"valid > (now() - '6 hours'::interval) ORDER by valid DESC LIMIT 1");
+	if (pg_numrows($rs) == 1){
+		return pg_fetch_assoc($rs, 0);
+	}
+	return null;
+}
+
+$host=$CONFIG["webdbconn"]["hostname"];
+$user="tt_web";
+$pass=$CONFIG["webdbconn"]["dbpass"];
+$db="talltowers";
+$conn = pg_Connect("host=$host dbname=$db user=$user password=$pass");
+pg_query($conn, "SET TIME ZONE 'UTC'");
+
+$data = Array();
+$tables = Array("monitor", "sonic", "analog");
+$towers = Array("hamilton", "story");
+while( list($towerid, $towername) = each($towers)){
+	reset($tables);
+	while( list($key, $table) = each($tables)){
+		$data[$towerid][$table] = get_last($conn, $table, $towerid);
+	}
+}
+
+$latest = "<table cellpadding=\"3\" border=\"1\" cellspacing=\"0\"><tr>";
+reset($towers);
+while (list($towerid, $tower) = each($towers)){
+	$latest .= "<td><h3>$tower</h3>";
+	reset($tables);
+	while (list($key, $table) = each($tables)){
+		$latest .= sprintf("<p><strong>%s</strong>: %s",
+				$table, @$data[$towerid][$table]["valid"]);
+	}
+	$latest .= "</td>";
+}
+$latest .= "</tr></table>";
+
+$table = <<<EOF
+<table><tr>
+EOF;
+$levels = Array(120, 80, 40, 20, 10, 5);
+$columns = Array("sonic" => Array("ux", "uy", "uz", "ts", "diag"),
+		"monitor" => Array("boardtemp", "boardhumidity", "inclinepitch",
+				"inclineroll"),
+		"analog" => Array("ws", "winddir", "rh", "airtc"));
+while (list($key, $level) = each($levels)){
+	$table .= sprintf("<td valign=\"top\">
+	<table border=\"1\" cellpadding=\"3\" cellspacing=\"0\">
+	<thead>
+		<tr><th colspan=\"3\">%s m</th></tr>
+		<tr><th>Variable</th><th>Hamiliton</th><th>Story</th></tr>
+	</thead>
+	<tbody>", $level);				
+	reset($columns);
+	while (list($tablename, $vnames) = each($columns)){
+		reset($vnames);
+		while (list($key, $vname) = each($vnames)){
+			if ($key == 0 && $tablename == 'sonic'){
+			} else {
+				$table .= "<tr>";
+			}
+			$vnames2 = get_vnames($vname, $level);
+			//echo sprintf("<br />%s :: %s :: %s :: %s", $vname, $level,
+			//		$tablename, $vnames2[0]);
+			while (list($key3, $col) = each($vnames2)){
+				$ham = @$data[0][$tablename][$col];
+				$sto = @$data[1][$tablename][$col];
+				$table .= sprintf("<td>%s</td><td>%s</td><td>%s</td></tr>", 
+						$col,
+						pp($ham), pp($sto));
+			}				
+		}
+	}
+	$table .= "</tbody></table></td>";
+}
+$table .= "</td></tr></table>";
 ?>
 <html>
 
 <head>
-	<title>TallTowers - TEST</title>
+	<title>TallTowers Latest Data</title>
 	<style>
 		h1,footer {
 				   text-align: center;
 		}
 	</style>
 </head>
+<body>
+	<h1>TallTowers Latest Data</h1>
 
-<body bgcolor="grey">
+<a href="/plots/">Recent Diagnostic Plots</a>
+<br />
 
-	<h1>TallTowers Test Query</h1>
-	<p>
-		The purpose of this webpage is to test:
-		<ul>
-			<li>Webserver installation is working,</li>
-			<li>Postgres can be queried with PHP script, using tt_web account, &amp;</li>
-			<li>Results of query can be displayed to webpage.</li>
-		</ul>
-	</p>
+<?php echo $latest; ?>
+<?php echo $table; ?>
 
-	<h2>Security Note</h2>
-	<p>
-		This is publicliy visible.
-	</p>
-	
-	<hr>
-	
-	<h4>start time of script execution</h4>
-        <?php
-                echo(date('Y-m-d H:i:s',time())),"-UTC";
-        ?>
-
-	<hr>
-	
-<!-- Query # 1 -->
-
-	<h3>Query #1</h3>
-	<p>Query the <b>Channels</b> table.</p>
-
-	<?php
-		$host=$CONFIG["webdbconn"]["hostname"];
-		$user="tt_web";
-		$pass=$CONFIG["webdbconn"]["dbpass"];
-		$db="talltowers";
-		$link=pg_Connect("host=$host dbname=$db user=$user password=$pass");
-		$query1="SELECT * FROM Channels WHERE site='story' AND height=40";
-		echo"<p>query1: <strong>",$query1,"</strong></p>";
-		$result=pg_exec($link,$query1);
-		$numrows=pg_numrows($result);
-	?>
-	<table border="1">
-		<tr>
-			<th>chn_id</th>
-			<th>header</th>
-			<th>height</th>
-			<th>site</th>
-			<th>unit</th>
-		</tr>
-		<?php
-		   // Loop on rows in the result set. 
-		   for($ri=0;$ri<$numrows;$ri++) {
-				echo"<tr>\n";
-				$row=pg_fetch_array($result,$ri);
-				echo" <td>",$row["chn_id"],"</td>
-				<td>",$row["header"],"</td>
-				<td>",$row["height"],"</td>
-				<td>",$row["site"],"</td>
-				<td>",$row["unit"],"</td>
-				</tr>
-				";
-			} pg_close($link);
-		?>
-	</table>
-
-	<?php
-		echo"<p>numrows = $numrows</p>";
-		echo"<p><small>link = $link &nbsp &nbsp result = $result</small></p>";
-	?>
-	
-	<hr>
-
-<!-- Query # 2 -->
-
-	<h3>Query #2</h3>
-	<p>Query the <b>dat</b> table for story county's "WS_40m_NWht", and 
-		calculate one min average, standard deviation, minimum, and maximum 
-		gust, for the previous 2 hours from now.
-		<br>
-		<em>Note:</em> this is the maximum 3 second average wind speed within 
-		the preceeding minute (and not recycling the window at the minute).
-	</p>
-	<?php
-		$link=pg_Connect("host=$host dbname=$db user=$user password=$pass");
-		$time=date('Y-m-d H:i:s',time() - 7200);
-		$query2="WITH rolling AS (SELECT ts, val, avg(val) OVER(ORDER BY ts ROWS BETWEEN 3 preceding AND current row) AS mean3 FROM dat WHERE ts > '$time'::timestamp with time zone AND chn_id=1122 ORDER BY ts) SELECT date_trunc('minute', ts), avg(val), stddev(val), min(val), max(val), max(mean3) AS max3sec FROM rolling GROUP BY date_trunc('minute', ts) ORDER BY date_trunc('minute', ts) ASC Limit 240";
-		echo"<p>query2: <strong>",$query2,"</strong></p>";
-		$result=pg_exec($link,$query2);
-		$numrows=pg_numrows($result);
-	?>
-	<table border="1">
-		<tr>
-			<th>TimeStamp (w/ TZ)</th>
-			<th>Average</th>
-			<th>Stand. Dev.</th>
-			<th>Minimum</th>
-			<th>Maximum</th>
-			<th>Max Gust</th>
-		</tr>
-		<?php
-		   // Loop on rows in the result set. 
-		   for($ri=0;$ri<$numrows;$ri++) {
-				echo"<tr>\n";
-				$row=pg_fetch_array($result,$ri);
-				echo" <td>",$row["date_trunc"],"</td>
-				<td>",$row["avg"],"</td>
-				<td>",$row["stddev"],"</td>
-				<td>",$row["min"],"</td>
-				<td>",$row["max"],"</td>
-				<td>",$row["max3sec"],"</td>
-				</tr>
-				";
-			} pg_close($link);
-		?>
-	</table>
-	<?php
-		echo"<p>numrows = $numrows</p>";
-		echo"<p><small>link = $link &nbsp &nbsp result = $result</small></p>";
-	?>
-	
-	<hr>
-	
-<!-- execution time -->
-
-	<h4>end time of script execution</h4>
-	<?php   
-		echo(date("Y-m-d H:i:s",time())),"-UTC";
-	?>
-	<hr>
 
 </body>
-
-<footer text-align:center>
-	<nav>author: Joe Smith</nav>
-	date: 2016-Aug-7
-</footer>
-
 </html>
