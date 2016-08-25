@@ -147,6 +147,7 @@ import psycopg2   # connect to database
 import ftplib     # deleting file from datalogger
 import json
 import pandas as pd
+import numpy as np
 
 # email
 import smtplib
@@ -1261,13 +1262,23 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
 
     df = pd.read_csv(ffn, skiprows=[0, 2, 3], header=0,
                      na_values=['NAN', '-INF', 'INF'])
+    if len(df.index) == 0:
+        raise Exception("0 data rows found in {}".format(fn))
     # add site
     df['tower'] = site_number
     df.drop('RECORD', axis=1, inplace=True)
     df['valid'] = pd.to_datetime(df['TIMESTAMP'])
     df.drop('TIMESTAMP', axis=1, inplace=True)
-
-    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep='\N')
+    if table == 'sonic':
+        # Convert the diag columns to int
+        for m in [5, 10, 20, 40, 80, 120]:
+            c = "Diag_%sm" % (m,)
+            if df[c].dtype != np.dtype(int):
+                # Hack as pandas can't have an int dtype with missing values
+                df[c] = df[c].apply(lambda x: ('%.0f' % (x,)
+                                               if (pd.notnull(x) and
+                                                   x > -32768 and x < 32767)
+                                               else None))
     tmin = df['valid'].min()
     tmax = df['valid'].max()
     if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
@@ -1277,6 +1288,7 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
         table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
     else:
         table = "data_monitor"
+    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep='\N')
     return sql_ffn, table, df.columns
 
 
