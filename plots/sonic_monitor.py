@@ -75,7 +75,7 @@ for key, value in plot_dict.items():
             fig, ax = plt.subplots(figsize=(17, 11))
             ts = df.index
             for col in df:
-                ax.plot(ts, df[col], label=col)
+                ax.plot(ts, df[col].values, label=col)
             # set legend and titles
             lgnd = ax.legend(loc='best')
             plot_title = ("One minute average of last {} hours "
