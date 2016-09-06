@@ -19,7 +19,7 @@ CONFIG = json.load(open("../config/settings.json", 'r'))
 
 # === INPUTS ===
 
-site_list = ['story', 'hamilton']
+site_list = ['hamilton', 'story']
 hours_back = 36
 plot_dir = CONFIG['plotsdir']
 

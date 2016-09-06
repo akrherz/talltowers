@@ -18,7 +18,7 @@ import matplotlib.dates as mdates  # NOPEP8
 CONFIG = json.load(open("../config/settings.json", 'r'))
 
 
-site_list = ['story', 'hamilton']
+site_list = ['hamilton', 'story']
 hours_back = 36
 hour_interval = 2  # period of "%H:%M" tickmarks in hours
 plot_dir = CONFIG['plotsdir']
