@@ -148,6 +148,7 @@ import ftplib     # deleting file from datalogger
 import json
 import pandas as pd
 import numpy as np
+import pytz
 
 # email
 import smtplib
@@ -1018,6 +1019,8 @@ def decode_filename(fn, dirpath):
     newffn: string
         new full-filename, without extention (extention added
         after file closes)
+    valid: datetime
+        the timestamp this file is valid for
 
     Notes
     -----
@@ -1036,13 +1039,16 @@ def decode_filename(fn, dirpath):
     mm = "{:02}".format(decode[1])
     dd = "{:02}".format(decode[2])
     hhtt = "{:02}{:02}".format(*divmod(decode[3]*38+decode[4], 60))
+    valid = datetime.datetime.strptime("%s%s%s%s" % (yyyy, mm, dd, hhtt),
+                                       "%Y%m%d%H%M")
+    valid = valid.replace(tzinfo=pytz.utc)
     filepath = os.path.join(dirpath, yyyy, mm, dd)
     chkmkdir(filepath)
     newfn = (fn[:3] + '_' + table_code[fn[3]] + '_' +
              yyyy[2:]+mm+dd + '-' + hhtt)
     newffn = os.path.join(filepath, newfn)
     logger.info("filename decoded:  {} = {}".format(fn, newfn))
-    return newffn
+    return newffn, valid
 
 
 def directory_traverse(dirpath, dates):
@@ -1522,7 +1528,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
         ffn = os.path.join(dirpath, fn)
         try:
             # decode filename and create output full-filename
-            toa5_file = decode_filename(fn, dirpath)
+            toa5_file, valid = decode_filename(fn, dirpath)
             # just check header for file type
             with open(ffn, "r") as rf:
                 file_type = rf.read(6)
@@ -1552,9 +1558,14 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
 
             logger.info(result)
             if result == "COPY Successful.":
-                logger.debug("moving .bdat file to /consumed: {}".format(fn))
-                chkmkdir(consumed_dir)
-                os.rename(ffn, os.path.join(consumed_dir, fn))
+                # Copy the .bdat file to consumed/YYYY/mm/dd/
+                restingplace = "%s/%s" % (consumed_dir,
+                                          valid.strftime("%Y/%m/%d"))
+                chkmkdir(restingplace)
+                restingfn = "%s/%s_%s" % (restingplace,
+                                          valid.strftime("%Y%m%d%H%M"), fn)
+                logger.debug("moving {} to {}".format(fn, restingfn))
+                os.rename(ffn, restingfn)
                 logger.debug("deleteing SQL formated file: {}".format(sql_ffn))
                 os.remove(sql_ffn)
                 # delete file on CR6 ???
