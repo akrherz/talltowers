@@ -18,7 +18,7 @@ import matplotlib.dates as mdates  # NOPEP8
 CONFIG = json.load(open("../config/settings.json", 'r'))
 
 site_list = ['hamilton', 'story']
-hours_back = 336
+hours_back = 300
 hour_interval = 24  # period of "%H:%M" tickmarks in hours
 plot_dir = CONFIG['plotsdir']
 
@@ -56,7 +56,7 @@ for key, value in plot_dict.items():
         ts_now_local = datetime.datetime.strftime(
             time_now.astimezone(tz.gettz('US/Central')), "%d-%b-%y %H:%M %Z")
         # =================== GET DATA FROM DATABASE =====================
-        # creaee empty list to hold data from each channel
+        # create empty list to hold data from each channel
         dfs = []
         conn = psycopg2.connect(('host={hostname} dbname={dbname} '
                                  'user={dbuser} password={dbpass}'
