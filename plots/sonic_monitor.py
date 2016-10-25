@@ -60,7 +60,7 @@ for key, value in plot_dict.items():
         dfs = []
         conn = psycopg2.connect(('host={hostname} dbname={dbname} '
                                  'user={dbuser} password={dbpass}'
-                                 ).format(**CONFIG['dbconn']))
+                                 ).format(**CONFIG['webdbconn']))
         cols = ["avg(%s) as avg_%s" % (v, v) for v in value['channels']]
         cols = ", ".join(cols)
         df = read_sql("""
@@ -102,15 +102,15 @@ for key, value in plot_dict.items():
             ax.xaxis.set_label_text('Time [UTC]')
             ax.xaxis.label.set_size(16)
             # format MINOR X-axis ticks & labels
-            lacator_working = ax.xaxis.get_minor_locator()
-            ax.xaxis.set_minor_locator(
-                mdates.HourLocator(interval=hour_interval))
-            ax.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
+            # ax.xaxis.set_minor_locator(
+            #    mdates.HourLocator(interval=hour_interval))
+            # ax.xaxis.set_minor_formatter(mdates.DateFormatter('%H:%M'))
             ax.xaxis.grid(True, which="minor")
             # format MINOR X-axis ticks & labels
-            ax.xaxis.set_major_locator(mdates.DayLocator())
-            ax.xaxis.set_major_formatter(
-                mdates.DateFormatter('\n%d-%b\n%Y'))
+            # ax.xaxis.set_major_locator(mdates.DayLocator())
+            # ax.xaxis.set_major_formatter(
+            #    mdates.DateFormatter('\n%d-%b\n%Y'))
+            print ts.min(), ts.max()
             plt.setp(ax.get_xticklabels(), rotation=0,
                      horizontalalignment='center')
             # clean & save
