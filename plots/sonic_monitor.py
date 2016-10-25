@@ -110,7 +110,6 @@ for key, value in plot_dict.items():
             # ax.xaxis.set_major_locator(mdates.DayLocator())
             # ax.xaxis.set_major_formatter(
             #    mdates.DateFormatter('\n%d-%b\n%Y'))
-            print ts.min(), ts.max()
             plt.setp(ax.get_xticklabels(), rotation=0,
                      horizontalalignment='center')
             # clean & save
