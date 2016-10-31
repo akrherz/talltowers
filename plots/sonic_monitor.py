@@ -5,6 +5,7 @@ make plot of recent data from talltowers project, for display on website.
 @author: joe
 """
 import os
+import sys
 import json
 import datetime
 from dateutil import tz
@@ -74,8 +75,13 @@ for key, value in plot_dict.items():
             # === PLOT ===
             fig, ax = plt.subplots(figsize=(17, 11))
             ts = df.index
+            plotted = False
             for col in df:
-                ax.plot(ts, df[col].values, label=col)
+                if not df[col].isnull().all():
+                    plotted = True
+                    ax.plot(ts, df[col].values, label=col)
+            if not plotted:
+                sys.exit()
             # set legend and titles
             lgnd = ax.legend(loc='best')
             plot_title = ("One minute average of last {} hours "
