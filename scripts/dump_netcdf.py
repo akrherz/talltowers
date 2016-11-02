@@ -56,6 +56,7 @@ def create_netcdf(valid):
     tm = nc.createVariable('time', np.double, ('time',))
     tm.units = "seconds since %s:00.000" % (valid.strftime("%Y-%m-%d %H:%M"),)
     tm.interval = "1.000"
+    tm[:] = np.arange(60*60*4)
 
     # sonic data
     for level in [5, 10, 20, 40, 80, 120]:
@@ -69,14 +70,14 @@ def create_netcdf(valid):
 
     # analog data
     for vname in ['ws_5m_s', 'ws_5m_nw', 'winddir_5m_s', 'winddir_5m_nw',
-                  'rh_5m', 'airtc_5m', 'ws_10m_s', 'ws_10m_nwht',
+                  'rh_5m', 'airtc_5m', 'ws_10m_s', 'ws_10m_nw',
                   'winddir_10m_s', 'winddir_10m_nw', 'rh_10m', 'airtc_10m',
                   'bp_10m', 'ws_20m_s', 'ws_20m_nw', 'winddir_20m_s',
                   'winddir_20m_nw', 'rh_20m', 'airtc_20m', 'ws_40m_s',
-                  'ws_40m_nwht', 'winddir_40m_s', 'winddir_40m_nw',
+                  'ws_40m_nw', 'winddir_40m_s', 'winddir_40m_nw',
                   'rh_40m', 'airtc_40m', 'ws_80m_s', 'ws_80m_nw',
                   'winddir_80m_s', 'winddir_80m_nw', 'rh_80m', 'airtc_80m',
-                  'bp_80m', 'ws_120m_s', 'ws_120m_nwht', 'winddir_120m_s',
+                  'bp_80m', 'ws_120m_s', 'ws_120m_nw', 'winddir_120m_s',
                   'winddir_120m_nw', 'rh_120m_1', 'rh_120m_2', 'airtc_120m_1',
                   'airtc_120m_2']:
         v = nc.createVariable(vname, np.double, ('time', 'station'),
@@ -138,7 +139,7 @@ def write_analog_data(valid, nc):
             delta = (row['valid'] - valid).total_seconds()
             tm = int(delta)
             data[tm, row['tower']] = row[col]
-        nc.variables[col][:] = data
+        nc.variables[col.replace("nwht", "nw")][:] = data
 
 
 def do(valid):
