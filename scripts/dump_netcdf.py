@@ -89,6 +89,8 @@ def create_netcdf(valid):
             units = '%'
         elif vname.startswith('airtc_'):
             units = 'C'
+        elif vname.startswith('bp_'):
+            units = 'hPa'
         v.units = units
         v.long_name = vname
     nc.sync()
