@@ -18,8 +18,8 @@ DT1970 = datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
 
 def create_netcdf(valid):
     """Generate the netcdf file"""
-    nt = dict(sts={'EETI4': {'lat': 42.345831, 'lon': -93.519442},
-                   'MCAI4': {'lat': 42.196692, 'lon': -93.357193}})
+    nt = {'EETI4': {'lat': 42.345831, 'lon': -93.519442},
+          'MCAI4': {'lat': 42.196692, 'lon': -93.357193}}
     nc = netCDF4.Dataset(valid.strftime("tt%Y%m%d%H%M.nc"), 'w')
     nc.createDimension('time', 14400)
     nc.createDimension('station', 2)
@@ -35,15 +35,15 @@ def create_netcdf(valid):
                             fill_value=1e37)
     lat.long_name = 'Station Degrees N Latitude'
     lat.units = 'deg'
-    lat[0] = nt.sts['ETTI4']['lat']
-    lat[1] = nt.sts['MCAI4']['lat']
+    lat[0] = nt['ETTI4']['lat']
+    lat[1] = nt['MCAI4']['lat']
 
     lon = nc.createVariable('longitude', np.double, ('station',),
                             fill_value=1e37)
     lon.long_name = 'Station Degrees E Longitude'
     lon.units = 'deg'
-    lon[0] = nt.sts['ETTI4']['lon']
-    lon[1] = nt.sts['MCAI4']['lon']
+    lon[0] = nt['ETTI4']['lon']
+    lon[1] = nt['MCAI4']['lon']
 
     elev = nc.createVariable('elevation', np.double, ('station',),
                              fill_value=1e37)
