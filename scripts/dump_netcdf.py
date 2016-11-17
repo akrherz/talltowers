@@ -2,6 +2,7 @@
 import sys
 import datetime
 import netCDF4
+import json
 import pytz
 import psycopg2
 from tqdm import tqdm
@@ -9,8 +10,10 @@ import numpy as np
 from pandas.io.sql import read_sql
 from pyiem.network import Table as NetworkTable
 
-PGCONN = psycopg2.connect(dbname='talltowers', host='talltowers.local',
-                          user='tt_web')
+CONFIG = json.load(open("../config/settings.json", 'r'))
+PGCONN = psycopg2.connect(('host={hostname} dbname={dbname} '
+                           'user={dbuser} password={dbpass}'
+                           ).format(**CONFIG['dbconn']))
 DT1970 = datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
 
 
@@ -93,33 +96,39 @@ def create_netcdf(valid):
             units = 'hPa'
         v.units = units
         v.long_name = vname
+
     nc.sync()
     print("Done with netcdf definition")
     return nc
+
+
+def dd(s):
+    print("%s %s" % (datetime.datetime.utcnow(), s))
 
 
 def write_sonic_data(valid, nc):
     """write data please"""
     table = valid.strftime("%Y%m")
     print("Querying data_sonic....")
+    # add bogus tower to query to get index goodness
     df = read_sql("""
         SELECT * from data_sonic_""" + table + """
-        where valid >= %s and valid < %s
+        where valid >= %s and valid < %s and tower in (0, 1)
     """, PGCONN, params=(valid, valid + datetime.timedelta(hours=4)),
                   index_col=None)
+    # Compute some necessary things
+    df['delta'] = (df['valid'] - valid) / np.timedelta64(1, 's')
+    df['sample'] = ((df['delta'] * 100) - (df['delta'].astype('i') * 100)) / 5
     xref = {'uz': 'w', 'ux': 'u', 'uy': 'v'}
     print("Writing data_sonic....")
     for col in tqdm(df.columns):
-        if col in ['tower', 'valid']:
+        if col in ['tower', 'valid', 'delta', 'sample']:
             continue
         v = col.split("_")[0]
         vname = col.replace(v, xref.get(v, v))
         data = np.ones(nc.variables[vname].shape, np.double) * 1e37
-        for _, row in df[['tower', 'valid', col]].iterrows():
-            delta = (row['valid'] - valid).total_seconds()
-            tm = int(delta)
-            sample = int((delta * 100) - (tm * 100)) / 5
-            data[tm, sample, row['tower']] = row[col]
+        for row in df[['tower', 'delta', 'sample', col]].itertuples():
+            data[int(row[2]), row[3], row[1]] = row[4]
         nc.variables[vname][:] = data
 
 
@@ -127,20 +136,22 @@ def write_analog_data(valid, nc):
     """write data please"""
     table = valid.strftime("%Y%m")
     print("Querying data_analog...")
+    # add bogus tower to query to get index goodness
     df = read_sql("""
         SELECT * from data_analog_""" + table + """
-        where valid >= %s and valid < %s
+        where valid >= %s and valid < %s and tower in (0, 1)
     """, PGCONN, params=(valid, valid + datetime.timedelta(hours=4)),
                   index_col=None)
+    # Compute some necessary things
+    df['delta'] = (df['valid'] - valid) / np.timedelta64(1, 's')
     print("writing data_analog...")
     for col in tqdm(df.columns):
-        if col in ['tower', 'valid']:
+        if col in ['tower', 'valid', 'delta']:
             continue
-        data = np.ones(nc.variables[col].shape, np.double) * 1e37
-        for _, row in df[['tower', 'valid', col]].iterrows():
-            delta = (row['valid'] - valid).total_seconds()
-            tm = int(delta)
-            data[tm, row['tower']] = row[col]
+        data = np.ones(nc.variables[col.replace("nwht", "nw")].shape,
+                       np.double) * 1e37
+        for row in df[['tower', 'delta', col]].itertuples():
+            data[int(row[2]), row[1]] = row[3]
         nc.variables[col.replace("nwht", "nw")][:] = data
 
 
@@ -155,7 +166,7 @@ def do(valid):
 def main(argv):
     """Run"""
     valid = datetime.datetime(int(argv[1]), int(argv[2]), int(argv[3]),
-                              int(argv[4]), int(argv[5]))
+                              int(argv[4]), 0)
     valid = valid.replace(tzinfo=pytz.utc)
     do(valid)
 
