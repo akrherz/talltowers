@@ -18,8 +18,8 @@ DT1970 = datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
 
 def create_netcdf(valid):
     """Generate the netcdf file"""
-    nt = {'ETTI4': {'lat': 42.345831, 'lon': -93.519442},
-          'MCAI4': {'lat': 42.196692, 'lon': -93.357193}}
+    nt = {'ETTI4': {'lat': 42.345831, 'lon': -93.519442, 'elevation': 356.849},
+          'MCAI4': {'lat': 42.196692, 'lon': -93.357193, 'elevation': 344.314}}
     nc = netCDF4.Dataset(valid.strftime("tt%Y%m%d%H%M.nc"), 'w')
     nc.createDimension('time', 14400)
     nc.createDimension('station', 2)
@@ -49,8 +49,8 @@ def create_netcdf(valid):
                              fill_value=1e37)
     elev.long_name = 'Approximate Station Base Elevation'
     elev.units = 'm'
-    elev[0] = nt.sts['ETTI4']['elevation']
-    elev[1] = nt.sts['MCAI4']['elevation']
+    elev[0] = nt['ETTI4']['elevation']
+    elev[1] = nt['MCAI4']['elevation']
 
     bt = nc.createVariable('base_time', np.int, ('number',))
     bt.units = 'seconds since 1970-01-01 00:00:00.000'
