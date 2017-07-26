@@ -14,7 +14,7 @@ before_install:
   - sudo apt-get update -qq
 install:
   - "pip install --upgrade pip"
-  - "sudo pip install pandas psycopg2 pytz"
+  - "pip install pandas psycopg2 pytz"
 before_script:
   - cat config/settings-in.json |  sed -e "s,{{path}},`pwd`,g" | tee config/settings.json > /dev/null
   - cd database; sh bootstrap.sh
