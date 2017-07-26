@@ -12,10 +12,9 @@ before_install:
   - chmod 755 $HOME
   - sudo add-apt-repository ppa:ubuntugis/ppa -y
   - sudo apt-get update -qq
-  - sudo apt-get install -qq python-psycopg2 python-tz
 install:
   - "pip install --upgrade pip"
-  - "sudo pip install pandas"
+  - "sudo pip install pandas psycopg2 pytz"
 before_script:
   - cat config/settings-in.json |  sed -e "s,{{path}},`pwd`,g" | tee config/settings.json > /dev/null
   - cd database; sh bootstrap.sh
