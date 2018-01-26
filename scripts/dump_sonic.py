@@ -1,6 +1,5 @@
 import datetime
 import psycopg2
-from ansible.modules.extras.cloud.amazon import sts_assume_role
 
 pgconn = psycopg2.connect(database='talltowers',
                           host='talltowers-db.agron.iastate.edu',

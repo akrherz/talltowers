@@ -1,8 +1,10 @@
 """Generate a standard netcdf file with the tall towers data!"""
+from __future__ import print_function
 import sys
 import datetime
-import netCDF4
 import json
+
+import netCDF4
 import pytz
 import psycopg2
 from tqdm import tqdm
@@ -169,6 +171,7 @@ def main(argv):
                               int(argv[4]), 0)
     valid = valid.replace(tzinfo=pytz.utc)
     do(valid)
+
 
 if __name__ == '__main__':
     main(sys.argv)
