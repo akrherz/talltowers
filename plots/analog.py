@@ -81,6 +81,8 @@ for key, value in plot_dict.items():
             #   keep it matplotlib thoughout.
             ts = df.index
             for col in df:
+                if df[col].isnull().all():
+                    continue
                 ax.plot(ts, df[col], label=col)
             # set legend and titles
             lgnd = ax.legend(loc='best')
