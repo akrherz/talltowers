@@ -75,11 +75,11 @@ def create_netcdf(valid, window):
     tm.units = "seconds since %s:00.000" % (valid.strftime("%Y-%m-%d %H:%M"),)
     tm.bounds = 'time_bnds'
     # Start at 300 seconds in
-    tm[:] = np.arange(300, timelen * 300 + 1, 300)
+    tm[:] = np.arange(60 * window, timelen * 60 * window + 1, 300)
 
     tmb = nc.createVariable('time_bnds', 'd', ('time', 'bnds'))
-    tmb[:, 0] = np.arange(0, timelen * 300, 300)
-    tmb[:, 1] = np.arange(300, timelen * 300 + 1, 300)
+    tmb[:, 0] = np.arange(0, timelen * 60 * window, 60 * window)
+    tmb[:, 1] = np.arange(60 * window, timelen * 60 * window + 1, 60 * window)
 
     # analog data
     for vname in ANALOG_VARS:
