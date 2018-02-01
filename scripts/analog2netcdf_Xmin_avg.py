@@ -74,8 +74,8 @@ def create_netcdf(valid, window):
     tm = nc.createVariable('time', np.double, ('time',))
     tm.units = "seconds since %s:00.000" % (valid.strftime("%Y-%m-%d %H:%M"),)
     tm.bounds = 'time_bnds'
-    # Start at 300 seconds in
-    tm[:] = np.arange(60 * window, timelen * 60 * window + 1, 300)
+    # Start at 60 * window seconds in
+    tm[:] = np.arange(60 * window, timelen * 60 * window + 1, 60 * window)
 
     tmb = nc.createVariable('time_bnds', 'd', ('time', 'bnds'))
     tmb[:, 0] = np.arange(0, timelen * 60 * window, 60 * window)
