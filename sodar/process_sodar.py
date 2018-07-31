@@ -128,6 +128,7 @@ def download_files(valid):
     """Get the files for this valid time."""
     settings = json.loads(open('secret.json').read())
     conn = None
+    downloaded = 0
     for suffix in ['extended', 'operational', 'standard']:
         remotefn = valid.strftime(
             "963/triton_963_%Y-%m-%d-%H-%M_" + suffix + ".csv"
@@ -141,8 +142,10 @@ def download_files(valid):
         fp = open(localfn, 'wb')
         conn.retrbinary('RETR %s' % (remotefn, ), fp.write)
         fp.close()
+        downloaded += 1
     if conn:
         conn.close()
+    return downloaded
 
 
 def main(argv):
@@ -150,8 +153,10 @@ def main(argv):
     valid = datetime.datetime(int(argv[1]), int(argv[2]), int(argv[3]),
                               int(argv[4]), int(argv[5]))
     valid = valid.replace(tzinfo=pytz.UTC)
-    download_files(valid)
-    ingest(valid)
+    for offset in [0, 1, 6, 24, 72]:
+        valid2 = valid - datetime.timedelta(hours=offset)
+        if download_files(valid2) > 0:
+            ingest(valid2)
 
 
 if __name__ == '__main__':
