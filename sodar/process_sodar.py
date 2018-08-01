@@ -130,7 +130,7 @@ def ingest(valid):
     dbsave(surface, valid)
 
 
-def download_files(valid):
+def download_files(valid, offset):
     """Get the files for this valid time."""
     settings = json.loads(open('secret.json').read())
     conn = None
@@ -149,7 +149,11 @@ def download_files(valid):
         try:
             conn.retrbinary('RETR %s' % (remotefn, ), fp.write)
         except Exception as exp:
-            print("download of %s failed with %s" % (remotefn, exp))
+            if offset > 0:
+                print("download of %s failed with %s" % (remotefn, exp))
+            fp.close()
+            os.unlink(localfn)
+            continue
         fp.close()
         downloaded += 1
     if conn:
@@ -164,7 +168,7 @@ def main(argv):
     valid = valid.replace(tzinfo=pytz.UTC)
     for offset in [0, 1, 6, 24, 72]:
         valid2 = valid - datetime.timedelta(hours=offset)
-        if download_files(valid2) > 0:
+        if download_files(valid2, offset) > 0:
             ingest(valid2)
 
 
