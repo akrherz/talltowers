@@ -90,9 +90,15 @@ def ingest(valid):
         fn = valid.strftime(
             "/home/sodar/triton_963_%Y-%m-%d-%H-%M_" + suffix + ".csv"
         )
-        df = pd.read_csv(fn)
+        try:
+            df = pd.read_csv(fn)
+        except Exception as exp:
+            print("process_sodar reading %s resulted in exp %s" % (fn, exp))
+            continue
         df.set_index(df.columns[0], inplace=True)
         dfs.append(df)
+    if not dfs:
+        return
     df = dfs[0].join(dfs[1:])
     surface = {}
     profiles = []
@@ -140,7 +146,10 @@ def download_files(valid):
             conn = FTP(settings['host'])
             conn.login(settings['username'], settings['password'])
         fp = open(localfn, 'wb')
-        conn.retrbinary('RETR %s' % (remotefn, ), fp.write)
+        try:
+            conn.retrbinary('RETR %s' % (remotefn, ), fp.write)
+        except Exception as exp:
+            print("download of %s failed with %s" % (remotefn, exp))
         fp.close()
         downloaded += 1
     if conn:
