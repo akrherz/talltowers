@@ -3,3 +3,4 @@
 /.pydevproject
 /.settings/
 /sodar/secret.json
+/examples/**
