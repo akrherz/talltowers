@@ -62,7 +62,7 @@ for key, value in plot_dict.items():
         dfs = []
         conn = psycopg2.connect(('host={hostname} dbname={dbname} '
                                  'user={dbuser} password={dbpass}'
-                                 ).format(**CONFIG['dbconn']))
+                                 ).format(**CONFIG['webdbconn']))
         cols = ["avg(%s) as avg_%s" % (v, v) for v in value['channels']]
         cols = ", ".join(cols)
         df = read_sql("""
