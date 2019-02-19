@@ -1,17 +1,9 @@
-sudo: required
-dist: trusty
 addons:
   hosts:
     - iemdb
-virtualenv:
-  system_site_packages: true
 language: python
 python:
   - "3.6"
-before_install:
-  - chmod 755 $HOME
-  - sudo add-apt-repository ppa:ubuntugis/ppa -y
-  - sudo apt-get update -qq
 install:
   - "pip install --upgrade pip"
   - "pip install pandas psycopg2 pytz"
