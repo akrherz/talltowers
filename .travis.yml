@@ -7,7 +7,7 @@ virtualenv:
   system_site_packages: true
 language: python
 python:
-  - "2.7"
+  - "3.6"
 before_install:
   - chmod 755 $HOME
   - sudo add-apt-repository ppa:ubuntugis/ppa -y

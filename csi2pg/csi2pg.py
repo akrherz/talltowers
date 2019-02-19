@@ -1,5 +1,3 @@
-#!/usr/local/bin/python
-# -*- coding: utf-8 -*-
 """
 Convert file(s) of Campbell Scientific
 TOB1 or TOB3 to TOA5 (comma-separated ASCII).
@@ -152,8 +150,8 @@ import pytz
 
 # email
 import smtplib
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEText import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import subprocess
 
 # logging
@@ -648,8 +646,8 @@ def decode_TOB3(ffn, toa5_file):
     header = []
     valid_frame_cnt, not_valid_frame_cnt = 0, 0
     with open(ffn, "rb") as rf:
-        for ii in range(6):
-            header.append((rf.readline().replace('"', "")
+        for _ in range(6):
+            header.append((rf.readline().decode('ascii', 'ignore').replace('"', "")
                            .replace("\r\n", "").replace("\n", "").split(",")))
         # extract header information
         #  bl := Byte Length; list of bytes length per measurment for each
@@ -701,8 +699,8 @@ def decode_TOB3(ffn, toa5_file):
                 # demoted to debug
                 logger.debug(("File ({}) header Inconsistentcy for bytes per "
                               "framesize; using header data, not manual's "
-                              "equation."
-                              ).format(fn))
+                              "equation. fs_check: {} fs: {}"
+                              ).format(fn, fs_check, fs))
         # interval := non-timestamped record interval; for intra-frame
         # timestamps; in seconds
         interval_str = header[1][1].split(" ")
@@ -1294,7 +1292,7 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
         table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
     else:
         table = "data_monitor"
-    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep='\N')
+    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep=r'\N')
     return sql_ffn, table, df.columns
 
 
@@ -1530,8 +1528,8 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             # decode filename and create output full-filename
             toa5_file, valid = decode_filename(fn, dirpath)
             # just check header for file type
-            with open(ffn, "r") as rf:
-                file_type = rf.read(6)
+            with open(ffn, "rb") as rf:
+                file_type = rf.read(6).decode('ascii', 'ignore')
             logger.debug(("file: {}; type: {}; TOA5:{}"
                           ).format(fn, file_type, toa5_file))
             # call appropriate function
