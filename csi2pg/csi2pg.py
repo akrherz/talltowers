@@ -1,135 +1,6 @@
-"""
-Convert file(s) of Campbell Scientific
-TOB1 or TOB3 to TOA5 (comma-separated ASCII).
-The reuslts are stored in sub directories by YYYY/MM/DD, where the root is the
-location of the origional file.
-The file names are also decoded into human readable format, which indicates
-"site_dataTable_date-time.dat"
-Then the resultant TOA5 file is parsed and COPYed into the database.
+"""Parse CS Data
 
-TOB1  is avaiable to both CR6 and CR3000.  for the "TableFile()" function,
-it is type "0".
-TOB3  is card-native binary, and only availble for dataloggers with CRD: drive.
-for the "TableFile()" function, it is type "64".
-
-This has command line options, which include
- * seecifying directory of file (default is "/home/csiftp"),
- * naming a specific file or files (default is search for pattern sent from
-   CR6s),
- * choosing a different timestamp format (default is CSI emulated, i.e.
-   minimal characters, disregard sig.figs.)
- * print troubleshooting info, which is especially useful for TOB3 minor
-   frames.
- * database to COPY data to (default is talltowers)
-
-The reason the ASCII file is parsed for COPY into database is for modularity.
-It would be more efficeint to create the .sql file at the same time as the
-ASCII file, but it is more convienent to code one program which parses CSI's
-standard TOA5 output into .sql form.
-=====================================================================================
-
-*** TOB1 ***
-TOB1 file has 5 line header:
- 1) Environment ["file-type","station-name","model-name","serial-number",
-                 "os-version","dld-name","dld-signature","table-name"]
- 2) Field Names
- 3) Field Units
- 4) Field Processing
- 5) Field Data Types  *(see definition of "data_type_dict")
-
-This Binary fine type does NOT have frames; each record is written
-  sequentially,
-  without reference to frame footers or headers, just like TOA5 files, ...
-  but in binary.  That is, unlike TOB3 formats, there are no footers or
-  headers to parse.
-The binary values are decoded by using the Field Data Types, which specify how
-  many Bytes are are used by each measurment; and in sum how many Bytes are
-  used per row.
-
-Script Procedure:
- 1) identify file to convert
- 2) define dictionaries and functions
- 3) read files header information
- 4) calculations based on Field Data Types (row 5 of header)
-     a) length of each record in Bytes
-     b) format of each record's output string (taking into account significant
-        figures available due to the Bytes allocated for it.)
-     c) make modifications, if TIMESTAMP is present
- 5) write modified header to output file
- 6) decode each record, and write to output file
-
-=====================================================================================
-
-*** TOB3 ***
-TOB3 file has 6 line header:
- 1) Experiment Environment ["File Type", "Station Name", "Model Name",
-                            "Serial Number", "OS Version", "DLD Name",
-                            "DLD Signature", "File Creation Time"]
- 2) Additional Decode Information ["Table Name",
-                                   "Non-Timestamped Record Interval",
-                                   "Data Frame Size", "Intended Table Size",
-                                   "Validation Stamp", "Frame Time Resolution",
-                                   "Ring Record Number", Card Removal Time",
-                                   "Internal Table CRC"]
- 3) Field Names
- 4) Field Units
- 5) Field Processing
- 6) Field Data Types  *(see definition of "data_type_dict")
-
-each Frame has header, data, & footer.
- Frame Header)  12 byte (8byte for TOB2)
- Frame Data)    "Data Frame Size" - ( frame header size + frame footer size )
- Frame Footer)  4 byte; this contains flags regarding how/if frame processing
-   should proceed; an invalid frame can be as short as 2-Bytes.
-
-notes: CSI encodes data with a mix of little and big endian, specific to each
- data type.
-
-TOB3 Script Procedure:
- 1) read file as binary
- 2) read header information
- 3) define dictionaries and functions
- 4) calculations based on header information
- 5) loop tHough MAJOR Frames, from beginning to end of file.
-     0) get MAJOR footer information
-     1) if validation fails: go to next Major frame.
-     2) if "E" (empty) flag == 1 or "M" (minor frame) flag == 1:
-         # not sure if both of these must happen at end of Dirty frame.
-         # "E" doesn't mean an empty Major frame, it only means an empty minor
-         # frame at the end of that Major frame.
-         a) get size of minor frame
-         b) if "E" == 1:
-              Move to previous minor frame, within the Major frame
-            else:
-              1) process header
-              2) process data ("decode_data_bin()")
-              3) move to previous minor frame
-         c) process next minor frame's footer
-              *) do not process Validation for subsequnent minor frames within
-                 current MAJOR frame.
-         d) after processing all minor frames within Major frame,
-              reverse order of records for each minor frame (but Not within
-              each minor frame!)
-         e) write data to output file
-     3) process header, for timestamp & record number
-     4) process data ("decode_data_bin()"), from beginning to end of MAJOR
-        frame
-     5) write data to putput file
-     6) go to next MAJOR frame
- 6) close read file, close write file
-
-=============================================================================
-
- *** NOTES on struct module ***
-##import struct
-# structure format codes
-  # H := 2-Byte unsigned short
-  # I := 4-Byte unsigned integer
-  # L := 4-Byte unsigned long
-  # f := 4-Byte float
-# struc encoding codes
-  # < little-endian; least significant digit first
-  # > big-endian; most significant digit first
+See `README.md` for more details on this code
 
 @date: Feb 2016
 @author: joesmith@iastate.edu
@@ -141,12 +12,8 @@ import datetime   # datetime & timedelta
 import sys        # sys.exit() & email (tail -5) & sys.path.append
 import re         # re.match()
 import struct     # unpacking binary
-import psycopg2   # connect to database
 import ftplib     # deleting file from datalogger
 import json
-import pandas as pd
-import numpy as np
-import pytz
 
 # email
 import smtplib
@@ -156,6 +23,14 @@ import subprocess
 
 # logging
 import logging.config
+
+# third party
+import pandas as pd
+import numpy as np
+import pytz
+import psycopg2
+
+# local directory stuff
 from log_conf import logger_configurator  # @UnresolvedImport
 
 # assume we run the script from this directory
@@ -165,10 +40,9 @@ CONFIG = json.load(open("../config/settings.json", 'r'))
 logger_config = logger_configurator()
 logger_config.make_log_files()
 logging.config.dictConfig(logger_config.log_conf_dict)
-logger = logging.getLogger(__name__)
 
 # CSI datalogger timestamps are based on seconds since midnight, 1-Jan-1990
-csi_epoch = datetime.datetime(1990, 1, 1)
+CSI_EPOCH = datetime.datetime(1990, 1, 1)
 
 data_type_dict = {
     # primary dictionary for decoding bytes and formatting output stirngs
@@ -176,40 +50,40 @@ data_type_dict = {
     # in one type of TOB file
     # name         format        size         reformat_string
     # {Bool8} string of eight bits; the bit order is reveresed (no idea why.)
-    'BOOL8':    {'fmt': 'B',   'size': 1,    'refmt': '"{}"'},
+    'BOOL8': {'fmt': 'B', 'size': 1, 'refmt': '"{}"'},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL4':    {'fmt': '4B',  'size': 4,    'refmt': '{}'},
+    'BOOL4': {'fmt': '4B', 'size': 4, 'refmt': '{}'},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL2':    {'fmt': '2B',  'size': 2,    'refmt': '{}'},
+    'BOOL2': {'fmt': '2B', 'size': 2, 'refmt': '{}'},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL':     {'fmt': 'B',   'size': 1,    'refmt': '{}'},
+    'BOOL': {'fmt': 'B', 'size': 1, 'refmt': '{}'},
     #
-    'UINT2':    {'fmt': '>H',  'size': 2,    'refmt': '{}'},
+    'UINT2': {'fmt': '>H', 'size': 2, 'refmt': '{}'},
     #   TOB1
-    'UINT4':    {'fmt': '>L',  'size': 4,    'refmt': '{}'},
+    'UINT4': {'fmt': '>L', 'size': 4, 'refmt': '{}'},
     #   TOB3
-    'INT4':     {'fmt': '>l',  'size': 4,    'refmt': '{}'},
+    'INT4': {'fmt': '>l', 'size': 4, 'refmt': '{}'},
     # {TIMESTAMP & RECORD}
-    'ULONG':    {'fmt': '<L',  'size': 4,    'refmt': '{}'},
+    'ULONG': {'fmt': '<L', 'size': 4, 'refmt': '{}'},
     # {Long} signed integer; twos compliment! ?????
-    'LONG':     {'fmt': '<l',  'size': 4,    'refmt': '{}'},
+    'LONG': {'fmt': '<l', 'size': 4, 'refmt': '{}'},
     # {FP2}
-    'FP2':      {'fmt': '>H',  'size': 2,    'refmt': '{:.4g}'},
+    'FP2': {'fmt': '>H', 'size': 2, 'refmt': '{:.4g}'},
     # {IEEE4}  little-Endian for TOB1 !!!  TOB1
-    'IEEE4':    {'fmt': '<f',  'size': 4,    'refmt': '{:.7g}'},
+    'IEEE4': {'fmt': '<f', 'size': 4, 'refmt': '{:.7g}'},
     # {IEEE4}  little-Endian for TOB1 !!!  ...same as IEEE4
-    'IEEE4L':   {'fmt': '<f',  'size': 4,    'refmt': '{:.7g}'},
+    'IEEE4L': {'fmt': '<f', 'size': 4, 'refmt': '{:.7g}'},
     # {IEEE4}   Big-Endian  for  TOB3 !!!  TOB3
-    'IEEE4B':   {'fmt': '>f',  'size': 4,    'refmt': '{:.7g}'},
+    'IEEE4B': {'fmt': '>f', 'size': 4, 'refmt': '{:.7g}'},
     # {Nsec} string YYYY-MM-DD hh:mm:ss.  TOB1
-    'SecNano':  {'fmt': '<2L', 'size': 8,    'refmt': '"{}"'},
+    'SecNano': {'fmt': '<2L', 'size': 8, 'refmt': '"{}"'},
     # {Nsec} string YYYY-MM-DD hh:mm:ss.  TOB3
-    'NSec':     {'fmt': '>2I', 'size': 8,    'refmt': '"{}"'},
+    'NSec': {'fmt': '>2I', 'size': 8, 'refmt': '"{}"'},
     # {String}; is still in ASCII, NOT binary!!!
-    'ASCII':    {'fmt': 's',   'size': None, 'refmt': '"{}"'},
+    'ASCII': {'fmt': 's', 'size': None, 'refmt': '"{}"'},
 }
 
-file_type_dict = {
+FILE_TYPE_DICT = {
     # for TOB2 & TOB3
     # fhs := frame header size
     # ffs := frame footer size
@@ -217,7 +91,7 @@ file_type_dict = {
     'TOB3': {'fhs': 12, 'ffs': 4},
 }
 
-interval_dict = {
+INTERVAL_DICT = {
     # for TOB2 & TOB3
     # this dictionary converts the "Frame Time Resolution"
     # (header line 2) from,
@@ -274,25 +148,23 @@ monitor = ["TIMESTAMP", "RECORD", "CR6_BattV", "CR6_PTemp", "BoardTemp_120m",
            "BoardTemp_10m", "BoardHumidity_10m", "InclinePitch_10m",
            "InclineRoll_10m", "BoardTemp_5m", "BoardHumidity_5m",
            "InclinePitch_5m", "InclineRoll_5m"]
-chk_header = {'analog': analog, 'sonic': sonic, 'monitor': monitor}
+CHK_HEADER = {'analog': analog, 'sonic': sonic, 'monitor': monitor}
 
 # decoding dict for decode_filename()
 table_code = {'S': 'sonic', 'A': 'analog', 'M': 'monitor'}
 
 # database's chn_id code
 #  based on decode_filename()'s file naming convetions
-chn_code = {
-            'sites': {'sto': 1, 'ham': 0},
-            'tables': {'analog': 100, 'sonic': 200, 'monitor': 300}
-            # tens & ones digits of chn_id are based the zero-based column
-            # position in the .dat file
-           }
+CHN_CODE = {
+    'sites': {'sto': 1, 'ham': 0},
+    'tables': {'analog': 100, 'sonic': 200, 'monitor': 300}
+}
 
 # for COPYing to dat file
 dat_tablecolumns = {'table': 'dat', 'columns': ('ts', 'chn_id', 'val')}
 
 
-def decode_data_bin(rec, dtl, bl, csi_epoch=csi_epoch):
+def decode_data_bin(rec, dtl, bl):
     """
     Decode binary data according to data type.
 
@@ -305,8 +177,6 @@ def decode_data_bin(rec, dtl, bl, csi_epoch=csi_epoch):
         instead of "ASCII(#)" variants
     bl: list of integers
         the number of bytes, for each value in record
-    csi_epoch: boolean (optional, as long as csi_epoch set in main program)
-        the CSI epoch is 1-Jan-1990 00:00:00.
 
     Returns
     -------
@@ -347,7 +217,7 @@ def decode_data_bin(rec, dtl, bl, csi_epoch=csi_epoch):
         elif dtype == "SecNano" or dtype == "NSec":
             ts_list = struct.unpack(fmt, rec[offset:offset+size])
             # ts_list[seconds since CSI epoch, NANOseconds into second]
-            ts = csi_epoch + datetime.timedelta(0, ts_list[0], ts_list[1]/1000)
+            ts = CSI_EPOCH + datetime.timedelta(0, ts_list[0], ts_list[1]/1000)
             value = ts_formatter(ts)
         else:
             # standard processing for all other data types
@@ -417,7 +287,7 @@ def footer_parse(footer, validation_int):
 
     Returns
     -------
-    Valid_frame: Boolean
+    valid_frame: Boolean
         did the file's header and frames validation code match?
     F: binary (1=true, 0=false)
         File mark; a programaticly controlled marker
@@ -434,7 +304,7 @@ def footer_parse(footer, validation_int):
 
     Notes
     -----
-    Length of footer is 4 btes.
+    Length of footer is 4 bytes.
     """
     logger = logging.getLogger(__name__)
     # CSI documentation says "read as a 4-Byte unsigned integer with least
@@ -451,6 +321,7 @@ def footer_parse(footer, validation_int):
     #   flags       = footer[16:20]
     #   offset/size = footer[20:32]
     footer_bits = "{0:032b}".format(struct.unpack('<I', footer)[0])
+    logger.debug("footer_bits: %s", footer_bits)
     # validation
     #  the second/last 2-Byte interger, must match (or be the ones compliment)
     # the validation stamp from the header
@@ -470,7 +341,7 @@ def footer_parse(footer, validation_int):
     (F, R, E, M) = (0, 0, 0, 0)  # reset all flags
     if FREM != 0:
         if FREM & 0b0001:
-            # all records in current frame occure before the FILE Mark and
+            # all records in current frame occur before the FILE Mark and
             # all records subsequent were after the Mark.  The mark is set
             # by the program.
             F = 1
@@ -487,17 +358,19 @@ def footer_parse(footer, validation_int):
             M = 1
     # minor frame size:
     minor_frame_size = int(footer_bits[20:], base=2)
+    logger.debug(
+        "V: %s validation_int: %s minor_frame_size: %s",
+        V, validation_int, minor_frame_size)
     # size includes the minor frame header.
     # This is 0 for a TOB3 Major frame, but if there are minor frames, the
     # major frames footer
     #  is the last minor frame's footer, so this will will have a value, when
     # there is a minor frame flag.
-    logger.debug("footer pasred")
     # if invalid, the unknown what the minor_frame_size is
     return valid_frame, F, R, E, M, minor_frame_size
 
 
-def header_parse(header, ts_resolution, csi_epoch=csi_epoch):
+def header_parse(header, ts_resolution):
     """
     parses the header of a TOB3 frame.
 
@@ -509,8 +382,6 @@ def header_parse(header, ts_resolution, csi_epoch=csi_epoch):
         frame time resolution.  multiplier for sub-second part of frame
         timestamp to
         acheive microsecond resolution.  from header[1][5]
-    csi_epoch: boolean (optional, as long as csi_epoch set in main program)
-        the CSI epoch is 1-Jan-1990 00:00:00.
 
     Returns
     -------
@@ -532,13 +403,13 @@ def header_parse(header, ts_resolution, csi_epoch=csi_epoch):
     # <<<=====  Assume TOB3 format, i.e. 12-Byte header, not 8-Byte of TOB2
     header_tuple = struct.unpack('<3L', header)
     # datetime.timedelta(days, seconds, microseconds)
-    ts = csi_epoch + datetime.timedelta(0, header_tuple[0],
+    ts = CSI_EPOCH + datetime.timedelta(0, header_tuple[0],
                                         header_tuple[1]*ts_resolution)
     return ts, header_tuple[2]
 
 
 def decode_frameTOB3(head_and_data, fhs, trs, dtl, bl, rfs, rec_interval,
-                     ts_resolution, csi_epoch=csi_epoch):
+                     ts_resolution):
     """
     decode the data in TOB3 binary frame, after header and footer have
     been decoded.
@@ -564,8 +435,6 @@ def decode_frameTOB3(head_and_data, fhs, trs, dtl, bl, rfs, rec_interval,
     ts_resolution:
         frame time resolution.  multiplier for sub-second part of frame
             timestamp to acheive microsecond resolution.  from header[1][5]
-    csi_epoch: boolean (optional, as long as csi_epoch set in main program)
-        the CSI epoch is 1-Jan-1990 00:00:00.
 
     Returns
     -------
@@ -622,9 +491,6 @@ def decode_TOB3(ffn, toa5_file):
         full file name, including path and extention.
     toa5_file: string
         full file name of output file.
-    _troubleshooting_: boolean (set by script, not an argument!)
-        set by program, this option prints intermediate results and pauses
-        script for monitoring progres.
 
     Returns
     -------
@@ -636,236 +502,195 @@ def decode_TOB3(ffn, toa5_file):
     TOB3 files are written in major and minor frames, from top to bottom.  Each
         frame's footer must be check first.  If the frame if valid, it is
         decoded.
-    This function was written as the main(), but has since been incorporated as
-        a function of its own.
     """
     logger = logging.getLogger(__name__)
     fn = os.path.basename(ffn)
-    logger.info("starting to decode TOB3 file:  {}".format(fn))
+    logger.info("starting to decode TOB3 file:  %s", fn)
     rec_cnt = 0
     header = []
     valid_frame_cnt, not_valid_frame_cnt = 0, 0
-    with open(ffn, "rb") as rf:
-        for _ in range(6):
-            header.append((rf.readline().decode('ascii', 'ignore').replace('"', "")
-                           .replace("\r\n", "").replace("\n", "").split(",")))
-        # extract header information
-        #  bl := Byte Length; list of bytes length per measurment for each
-        # record.
-        # dtl := Data Type List; datatypes, but with "ASCII" instead of
-        # "ASCII(?+)", necessicary for dictionary lookup
-        # rfs := Record Format String; the string to use with .format(),
-        # for each record
-        # trs := Table Record Size; number of Bytes per record
-        # remove trailing spaces from last data type definition from header,
-        # which may be padded with spaces, so that the table header ends as
-        # a sector boundary.
-        dtypes = [ss.replace(" ", "") for ss in header[5]]
-        dtl = [xx.split("(")[0] for xx in dtypes]
-        rfs = ",".join([data_type_dict[xx]['refmt'] for xx in dtl]) + '\n'
-        bl = [int(xx.split("(")[1][:-1])
-              if ('ASCII' in xx) else data_type_dict[xx]['size']
-              for xx in dtypes]
-        trs = sum(bl)
-        # -- look-up header & footer size --
-        # fs := data Frame Size
-        # tbl := table size; intendes number of records in file
-        fs = int(header[1][2])
-        tbl = int(header[1][3])
-        # fft := file format type
-        # fhs := frame header size
-        # ffs := frame footer size
-        fft = header[0][0]
-        # check file's format
-        if fft != 'TOB3':
-            logger.critical("File ({}) is not TOB3 type!")
-            email_exit()
-        fhs = file_type_dict[fft]['fhs']
-        ffs = file_type_dict[fft]['ffs']
-        # nr := number of records per [major] frame
-        # ds := data size, within frame
-        # ## <<<=====  Assume interval dirven data record ###
-        interval_driven = True
-        if interval_driven:
-            if (trs + fhs + ffs) < 1024:
-                ds = 1024 - (fhs + ffs)
-                nr = ds/trs
-                fs_check = nr*trs + fhs + ffs
+    rf = open(ffn, "rb")
+    for _ in range(6):
+        header.append(
+            (rf.readline().decode('ascii', 'ignore').replace('"', "")
+                .replace("\r\n", "").replace("\n", "").split(",")))
+    # extract header information
+    #  bl := Byte Length; list of bytes length per measurment for each
+    # record.
+    # dtl := Data Type List; datatypes, but with "ASCII" instead of
+    # "ASCII(?+)", necessicary for dictionary lookup
+    # rfs := Record Format String; the string to use with .format(),
+    # for each record
+    # trs := Table Record Size; number of Bytes per record
+    # remove trailing spaces from last data type definition from header,
+    # which may be padded with spaces, so that the table header ends as
+    # a sector boundary.
+    dtypes = [ss.replace(" ", "") for ss in header[5]]
+    dtl = [xx.split("(")[0] for xx in dtypes]
+    rfs = ",".join([data_type_dict[xx]['refmt'] for xx in dtl]) + '\n'
+    bl = [int(xx.split("(")[1][:-1])
+          if ('ASCII' in xx) else data_type_dict[xx]['size']
+          for xx in dtypes]
+    trs = sum(bl)
+    # -- look-up header & footer size --
+    # fs := data Frame Size
+    # tbl := table size; intendes number of records in file
+    fs = int(header[1][2])
+    tbl = int(header[1][3])
+    # fft := file format type
+    # fhs := frame header size
+    # ffs := frame footer size
+    # check file's format
+    if header[0][0] != 'TOB3':
+        logger.critical("File (%s) is not TOB3 type!", ffn)
+        email_exit()
+    fhs = FILE_TYPE_DICT['TOB3']['fhs']
+    ffs = FILE_TYPE_DICT['TOB3']['ffs']
+
+    # interval := non-timestamped record interval; for intra-frame
+    # timestamps; in seconds
+    interval_str = header[1][1].split(" ")
+    interval = int(interval_str[0]) * INTERVAL_DICT[interval_str[1]]
+    # resolution := frame time resolution;  multiplier for sub-second
+    # part of frame timestamp to acheive microsecond resolution.
+    ts_resolution = resolution_dict[header[1][5]]
+    # validation := 2-Byte unsigned integer, this or its compliment, are
+    # compared with footer for validating frame integrity
+    validation_int = int(header[1][4])
+    # validation_bits = "{:016b}".format(int(header[1][4]))
+    # reformat header for output
+    ho = [header[xx] for xx in [0, 2, 3, 4]]
+    ho[0][0] = "TOA5"
+    ho[0][-1] = header[1][0]
+    ho[0].append(fn)        # add origional file name to header.
+    ho[1] = ["TIMESTAMP", "RECORD"] + ho[1]
+    ho[2] = ["TS", "RN"] + ho[2]
+    ho[3] = ["", ""] + ho[3]
+    # open output file for writing
+    outfile = open(toa5_file, "w")
+    # outfile = open(output,"w")
+    # write header
+    for hh in ho:
+        outfile.write('"' + '","'.join(hh) + '"\n')
+    # examine contents
+    # loop though file's Major Frames
+    major_cnt = 0  # used only for debugging
+    frame = rf.read(fs)
+    while len(frame) == fs:
+        # read frame footer
+        (valid_frame, F, R, E, M, minor_frame_size) = footer_parse(
+            frame[-ffs:], validation_int)
+        logger.debug(
+            "MajorFrame: %s len(frame): %s fs: %s valid_frame: %s "
+            "F: %s R: %s E: %s M: %s",
+            major_cnt, len(frame), fs, valid_frame, F, R, E, M)
+        major_cnt += 1  # used only for above
+        if valid_frame:
+            valid_frame_cnt += 1
+            # initialize list to hold formatted strings, which will
+            # be written to out file, after processing
+            # each Major frame.
+            records = []
+            if not(E == 1 or M == 1):
+                # standard Major Frame processing
+                records = decode_frameTOB3(
+                    frame[:-ffs], fhs, trs, dtl, bl, rfs, interval,
+                    ts_resolution)
             else:
-                fs_check = trs + fhs + ffs
-            if fs_check != fs:
-                # this should be a more serious issue, that the file and CSI
-                # standard do not match, but after months of WARNINGS this is
-                # demoted to debug
-                logger.debug(("File ({}) header Inconsistentcy for bytes per "
-                              "framesize; using header data, not manual's "
-                              "equation. fs_check: {} fs: {}"
-                              ).format(fn, fs_check, fs))
-        # interval := non-timestamped record interval; for intra-frame
-        # timestamps; in seconds
-        interval_str = header[1][1].split(" ")
-        interval = int(interval_str[0])*interval_dict[interval_str[1]]
-        # resolution := frame time resolution;  multiplier for sub-second
-        # part of frame timestamp to acheive microsecond resolution.
-        ts_resolution = resolution_dict[header[1][5]]
-        # validation := 2-Byte unsigned integer, this or its compliment, are
-        # compared with footer for validating frame integrity
-        validation_int = int(header[1][4])
-        # validation_bits = "{:016b}".format(int(header[1][4]))
-        # reformat header for output
-        ho = [header[xx] for xx in [0, 2, 3, 4]]
-        ho[0][0] = "TOA5"
-        ho[0][-1] = header[1][0]
-        ho[0].append(fn)        # add origional file name to header.
-        ho[1] = ["TIMESTAMP", "RECORD"] + ho[1]
-        ho[2] = ["TS", "RN"] + ho[2]
-        ho[3] = ["", ""] + ho[3]
-        # open output file for writing
-        with open(toa5_file, "w") as outfile:
-            # outfile = open(output,"w")
-            # write header
-            for hh in ho:
-                outfile.write('"' + '","'.join(hh) + '"\n')
-            logger.debug("header written")
-            # examine contents
-            # loop though file's Major Frames
-            major_cnt = 0  # used only for debugging
-            frame = rf.read(fs)
-            while len(frame) == fs:
-                logger.debug("MajorFrame: {}".format(major_cnt))
-                major_cnt += 1  # used only for above
-                # read frame footer
-                (valid_frame, F, R, E, M, minor_frame_size
-                 ) = footer_parse(frame[-ffs:], validation_int)
-                if valid_frame:
-                    valid_frame_cnt += 1
-                    # initialize list to hold formatted strings, which will
-                    # be written to out file, after processing
-                    # each Major frame.
-                    records = []
-                    if not(E == 1 or M == 1):
-                        # standard Major Frame processing
-                        records = decode_frameTOB3(frame[:-ffs], fhs, trs,
-                                                   dtl, bl, rfs, interval,
-                                                   ts_resolution)
-                    else:
-                        subframe_cnt = 0  # ### for debug only ####
-                        skip_sub_frame, cnt_sub_frame = 0, 0  # debugging only
-                        # enter sub-frame loop
-                        # this processes the unknown number of sub-frames
-                        # within the Major frame
-                        # start from the back of the major frame, and based
-                        # on the footer,
-                        #   identify the size of the sub-frame; analyze; then
-                        # move forward
-                        #   in the major frame by the size of the sub-frame.
-                        logger.debug("MINOR Frame processing!!!!")
-                        # initialize sub-frame loop (only 1 recursion deep, so
-                        # an "if" control works fine)
-                        # Byte count from the *END* of the Major Frame; when
-                        # this == fs, the sub-frame while loop breaks.
-                        subframe_offset = 0
-                        # the location of the end for the current sub-frame;
-                        # byte count from the front of the file.
-                        subframe_end_ptr = fs
-                        sub_frame = frame[
-                            (subframe_end_ptr - minor_frame_size):
-                                subframe_end_ptr]
-                        while True:
-                            # sub-frame at a Major frame boundary may be listed
-                            # as empty, but the other sub-frames may have data
-                            if not(E == 1):
-                                # append sub-frame records to records, i.e.
-                                # make a list (i.e. major frame) of lists
-                                # (i.e. minor frames).
-                                records.append(
-                                    decode_frameTOB3(
-                                        sub_frame[:-ffs], fhs, trs, dtl,
-                                        bl, rfs, interval,
-                                        ts_resolution))
-                            # identify location of next sub-frame
-                            subframe_offset += minor_frame_size
-                            subframe_end_ptr = fs - subframe_offset
-                            if logger.isEnabledFor(logging.DEBUG):
-                                debugstr = ("subframe: {}   "
-                                            ).format(subframe_cnt)
-                                debugstr += ("F={}, R={}, E={}, M={}\n"
-                                             ).format(F, R, E, M)
-                                debugstr += ("\t\tminor_frame_size = {}"
-                                             ).format(minor_frame_size)
-                                debugstr += ("subframe_offset = {}\t"
-                                             ).format(subframe_offset)
-                                debugstr += ("\t\tnext footer slice of "
-                                             "frame [{}:{}]\n"
-                                             ).format(-(subframe_offset+ffs),
-                                                      -subframe_offset)
-                                debugstr += ("\t\t                          "
-                                             "[{}:{}]\n"
-                                             ).format(fs-(subframe_offset+ffs),
-                                                      fs-subframe_offset)
-                                debugstr += ("\t\tnext minor frame slice of "
-                                             "frame [{}:{}]\n"
-                                             ).format((subframe_end_ptr -
-                                                       minor_frame_size),
-                                                      subframe_end_ptr)
-                                debugstr += "- "*20
-                                logger.debug(debugstr)
-                                if skip_sub_frame == cnt_sub_frame:
-                                    # int(raw_input("**-Paused for
-                                    # debugging-**\n**Enter number of MINOR
-                                    # frames to skip over; 0 (zero) is
-                                    # default.**\n"))
-                                    skip_sub_frame = 0
-                                    cnt_sub_frame = -1
-                                cnt_sub_frame += 1  # used for skip subframes
-                                subframe_cnt += 1   # only used for debugging
-                            if subframe_offset >= fs:
-                                # the total lenght of sub-frames has exhausted
-                                # the length of the Major frame
-                                #   exit the while loop, and return to the main
-                                # loop to write records to output.
-                                # A slice of major frame with a negative first
-                                # index results in an empty set,
-                                #   and processing that empty set in the footer
-                                # parse results in an index error.
-                                #   read next (actaull previous in memory)
-                                # frame's footer
-                                break
-                            # read next subframe' footer
-                            (valid_frame, F, R, E, M, minor_frame_size
-                             ) = footer_parse(
-                                frame[-(subframe_offset+ffs):-subframe_offset],
-                                validation_int)
-                            # read next subframe
-                            sub_frame = (
-                                frame[(subframe_end_ptr - minor_frame_size):
-                                      subframe_end_ptr])
-                    # record list of valid frame has been assembled.
-                    # check if sub-frames exist; if yes, reorder sub-frames,
-                    # and prepare for writing
-                    if records and type(records[0]) == list:
-                        # have a list of lists, which needs to be reveresed
-                        # (becaue sub-frames are
-                        #   read from bottom to top of major frame).
-                        # Then flatten, so that record is
-                        #   a list of strings, and not a list of lists of
-                        # strings.
-                        records.reverse()
-                        records = [jj for ii in records for jj in ii]
-                    rec_cnt += len(records)
-                    # write to output file
-                    outfile.writelines(records)
-                else:
-                    not_valid_frame_cnt += 1
-                    if not_valid_frame_cnt > 5:
-                        # ### 5 is arbitrary, because
-                        # after 1 it is probably done.
-                        logger.info(("breaking out of major frame parse loop, "
-                                     "becaue not_valid_frame_cnt > 5"))
+                subframe_cnt = 0  # ### for debug only ####
+                skip_sub_frame, cnt_sub_frame = 0, 0  # debugging only
+                # enter sub-frame loop
+                # this processes the unknown number of sub-frames
+                # within the Major frame
+                # start from the back of the major frame, and based
+                # on the footer,
+                #   identify the size of the sub-frame; analyze; then
+                # move forward
+                #   in the major frame by the size of the sub-frame.
+                logger.debug("MINOR Frame processing!!!!")
+                # initialize sub-frame loop (only 1 recursion deep, so
+                # an "if" control works fine)
+                # Byte count from the *END* of the Major Frame; when
+                # this == fs, the sub-frame while loop breaks.
+                subframe_offset = 0
+                # the location of the end for the current sub-frame;
+                # byte count from the front of the file.
+                subframe_end_ptr = fs
+                sub_frame = frame[
+                    (subframe_end_ptr - minor_frame_size):
+                        subframe_end_ptr]
+                while True:
+                    # sub-frame at a Major frame boundary may be listed
+                    # as empty, but the other sub-frames may have data
+                    if E != 1:
+                        # append sub-frame records to records, i.e.
+                        # make a list (i.e. major frame) of lists
+                        # (i.e. minor frames).
+                        records.append(
+                            decode_frameTOB3(
+                                sub_frame[:-ffs], fhs, trs, dtl,
+                                bl, rfs, interval,
+                                ts_resolution))
+                    # identify location of next sub-frame
+                    subframe_offset += minor_frame_size
+                    subframe_end_ptr = fs - subframe_offset
+                    if skip_sub_frame == cnt_sub_frame:
+                        # int(raw_input("**-Paused for
+                        # debugging-**\n**Enter number of MINOR
+                        # frames to skip over; 0 (zero) is
+                        # default.**\n"))
+                        skip_sub_frame = 0
+                        cnt_sub_frame = -1
+                    cnt_sub_frame += 1  # used for skip subframes
+                    subframe_cnt += 1   # only used for debugging
+                    if subframe_offset >= fs:
+                        # the total lenght of sub-frames has exhausted
+                        # the length of the Major frame
+                        #   exit the while loop, and return to the main
+                        # loop to write records to output.
+                        # A slice of major frame with a negative first
+                        # index results in an empty set,
+                        #   and processing that empty set in the footer
+                        # parse results in an index error.
+                        #   read next (actaull previous in memory)
+                        # frame's footer
                         break
-                # move to next MAJOR frame
-                frame = rf.read(fs)
-    logger.debug("TOB3 file ({});  rec_cnt = {}".format(fn, rec_cnt))
+                    # read next subframe' footer
+                    (valid_frame, F, R, E, M, minor_frame_size
+                     ) = footer_parse(
+                         frame[-(subframe_offset+ffs):-subframe_offset],
+                         validation_int)
+                    # read next subframe
+                    sub_frame = (
+                        frame[(subframe_end_ptr - minor_frame_size):
+                              subframe_end_ptr])
+            # record list of valid frame has been assembled.
+            # check if sub-frames exist; if yes, reorder sub-frames,
+            # and prepare for writing
+            if records:
+                # have a list of lists, which needs to be reveresed
+                # (becaue sub-frames are
+                #   read from bottom to top of major frame).
+                # Then flatten, so that record is
+                #   a list of strings, and not a list of lists of
+                # strings.
+                records.reverse()
+                records = [jj for ii in records for jj in ii]
+            rec_cnt += len(records)
+            # write to output file
+            outfile.writelines(records)
+        else:
+            not_valid_frame_cnt += 1
+            if not_valid_frame_cnt > 5:
+                # ### 5 is arbitrary, because
+                # after 1 it is probably done.
+                logger.info(("breaking out of major frame parse loop, "
+                             "becaue not_valid_frame_cnt > 5"))
+                break
+        # move to next MAJOR frame
+        frame = rf.read(fs)
+        logger.debug("read() got %s bytes", len(frame))
+    logger.debug("TOB3 file (%s);  rec_cnt = %s", fn, rec_cnt)
     return rec_cnt, tbl
 
 
@@ -895,7 +720,7 @@ def decode_TOB1(ffn, toa5_file):
     """
     logger = logging.getLogger(__name__)
     fn = os.path.basename(ffn)
-    logger.info("starting to decode TOB1 file {}".format(fn))
+    logger.info("starting to decode TOB1 file %s", fn)
     rec_cnt = 0
     header = []
     with open(ffn, "rb") as rf:
@@ -952,14 +777,14 @@ def decode_TOB1(ffn, toa5_file):
                     # convert to timestamp
                     ts_list = values[:2]
                     values = values[2:]
-                    ts = csi_epoch + datetime.timedelta(0, ts_list[0],
+                    ts = CSI_EPOCH + datetime.timedelta(0, ts_list[0],
                                                         ts_list[1]/1000)
                     values.insert(0, ts_formatter(ts))
                 values = ['"NAN"' if xx == 'nan' else xx for xx in values]
                 outfile.write(rfs.format(*values))
                 rec = rf.read(trs)
                 rec_cnt += 1
-    logger.debug("TOB1 file ({});  rec_cnt = {}".format(fn, rec_cnt))
+    logger.debug("TOB1 file (%s); rec_cnt = %s", fn, rec_cnt)
     return rec_cnt
 
 
@@ -1045,7 +870,7 @@ def decode_filename(fn, dirpath):
     newfn = (fn[:3] + '_' + table_code[fn[3]] + '_' +
              yyyy[2:]+mm+dd + '-' + hhtt)
     newffn = os.path.join(filepath, newfn)
-    logger.info("filename decoded:  {} = {}".format(fn, newfn))
+    logger.info("filename decoded: %s = %s", fn, newfn)
     return newffn, valid
 
 
@@ -1091,8 +916,7 @@ def directory_traverse(dirpath, dates):
 
     date_start = datenum1(dates[0])
     date_end = datenum1(dates[1])
-    logger.debug("date_start = {};   date_end = {}".format(date_start,
-                                                           date_end))
+    logger.debug("date_start = %s; date_end = %s", date_start, date_end)
     dir_list = []
     startinglevel = dirpath.count(os.sep)
     for top, _, _ in os.walk(dirpath):
@@ -1102,9 +926,9 @@ def directory_traverse(dirpath, dates):
     dir_list_filtered = [xx for xx in dir_list
                          if (datenum2(xx) >= date_start and
                              datenum2(xx) <= date_end)]
-    logger.info(("number of directories to Reimport via SQL = {}"
-                 ).format(len(dir_list_filtered)))
-    logger.debug("directories to import:\n{}".format(dir_list_filtered))
+    logger.info(("number of directories to Reimport via SQL = %s"
+                 ), len(dir_list_filtered))
+    logger.debug("directories to import:\n%s", dir_list_filtered)
     return dir_list_filtered
 
 
@@ -1127,11 +951,10 @@ def chkmkdir(dirpath):
     newdir = os.path.dirname(dirpath)
     if not os.path.exists(newdir):
         os.makedirs(newdir)
-        logger.info("dirpath made to: {}".format(newdir))
+        logger.info("dirpath made to: %s", newdir)
 
 
-def email_error(body, to_address=["joesmith@iastate.edu", ],
-                tail_error_log=True,
+def email_error(body, tail_error_log=True,
                 ffn_error=logger_config.ffn_error):
     """
     send email to joesmith@iastate.edu regarding specific fault for specified
@@ -1166,7 +989,7 @@ def email_error(body, to_address=["joesmith@iastate.edu", ],
                                                         ffn_error])
     msg.attach(MIMEText(body, 'plain'))
 
-    logger.info('Emailing ERROR to: {}'.format(toaddr))
+    logger.info('Emailing ERROR to: %s', toaddr)
 
     server = smtplib.SMTP(CONFIG['email']['server'])
     text = msg.as_string()
@@ -1182,7 +1005,7 @@ def email_exit(msg=""):
     if msg:
         msg = msg + '\n'
     email_error(msg + "Fatal error, see error log.")
-    logger.critical("ABORTED!\n" + "*"*20 + "  END OF LOG  " + "*"*20)
+    logger.critical("ABORTED!\n%s%s%s", "*" * 20, "  END OF LOG  ", "*" * 20)
     sys.exit()
 
 
@@ -1205,6 +1028,7 @@ def ftp_del(fn):
     -----
     Campbell dataloggers are active FTP so set pasv to False
     """
+    logger = logging.getLogger(__name__)
     # get file name as it exists on the datalogger
     fn_logger = fn[3:9]
     # identfiy which logger the file comes from
@@ -1215,12 +1039,11 @@ def ftp_del(fn):
     # log into dataloggers FTP service, navigate to direcotry, delete file
     site = ftplib.FTP(cr6['hostname'], cr6['user'], cr6['pass'])
     site.set_pasv(False)
-    site.cwd('\CRD')
+    site.cwd(r'\CRD')
     site.delete(fn_logger)
 
 
-def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
-                   chn_code=chn_code):
+def parse_TOA5_sql(ffn, dirpath=None):
     """
     parse the TOA5 formatted .dat file (4 header rows) into a .sql file.
 
@@ -1228,13 +1051,8 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
     ----------
     ffn: string
         full-filename (includes path and extention)
-    chk_header: dictionary [optional]
-        lists coresponding to datafile type (sonic,analog,monitor) the expected
-        header as a list, for comparison to channels table in database
     dirpath: string [optional]
         location to store tempororary .sql file
-    chn_code: dictionary
-        of dictionaries, to define the chn_id encoding based on site & table
 
     Returns
     -------
@@ -1257,17 +1075,17 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
         dirpath = CONFIG['dataroot']
     # setup filenames and
     fn = os.path.basename(ffn)
-    logger.info("starting to parse TOA5 file: {}".format(fn))
+    logger.info("starting to parse TOA5 file: %s", fn)
     fn_basename = os.path.splitext(fn)[0]
     site, table, _ = fn_basename.split("_")
     sql_ffn = os.path.join(dirpath, fn_basename+'.sql')
     # chn_id encoding
-    site_number = chn_code['sites'][site]
+    site_number = CHN_CODE['sites'][site]
 
     df = pd.read_csv(ffn, skiprows=[0, 2, 3], header=0,
                      na_values=['NAN', '-INF', 'INF'])
-    if len(df.index) == 0:
-        raise Exception("0 data rows found in {}".format(fn))
+    if df.empty:
+        raise Exception("0 data rows found in %s" % (fn, ))
     # add site
     df['tower'] = site_number
     df.drop('RECORD', axis=1, inplace=True)
@@ -1286,8 +1104,8 @@ def parse_TOA5_sql(ffn, chk_header=chk_header, dirpath=None,
     tmin = df['valid'].min()
     tmax = df['valid'].max()
     if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
-        logger.exception(("TOA5 file: {} has invalid time domain: {} {}"
-                          ).format(ffn, tmin, tmax))
+        logger.exception(
+            "TOA5 file: %s has invalid time domain: %s %s", ffn, tmin, tmax)
     if table != 'monitor':
         table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
     else:
@@ -1327,7 +1145,7 @@ def copy2db_execute(sql_ffn, db, table, columns, UTC=True):
 
     """
     logger = logging.getLogger(__name__)
-    logger.info("starting COPY to db for {}".format(os.path.basename(sql_ffn)))
+    logger.info("starting COPY to db for %s", os.path.basename(sql_ffn))
     try:
         conn = psycopg2.connect(('host={hostname} dbname={dbname} '
                                  'user={dbuser} password={dbpass}'
@@ -1346,55 +1164,8 @@ def copy2db_execute(sql_ffn, db, table, columns, UTC=True):
         return "COPY Successful."
         # return None
     except Exception as e:
-        logger.exception('Failed to execute COPY for {}'.format(sql_ffn))
+        logger.exception('Failed to execute COPY for %s', sql_ffn)
         return 'Failed to execute COPY for ' + sql_ffn + '; ErrMsg: ' + str(e)
-
-
-def reparse_sql(dirpath, dates, dbconn):
-    """
-    incase of database truncation or making test database, where there is a
-        need to reimport data from TOA5 files, which are already in YYYY/MM/DD
-        directory struture.  Therefore need to walk the directory tree,
-        and search for data between the dates provided.
-
-    Parameters
-    ----------
-    dates: list
-        two strings in lsit, formatted in YYYY-MM-DD format, represting the
-        begining date and end date (inclusive) to find TOA5 data, parse it to
-        SQL format, and import it to database.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    uses same functions as the origional sql file creation and COPY, except for
-        tree_list()
-    """
-    logger = logging.getLogger(__name__)
-    logger.info("starting reparse_sql()")
-    # return the directories to work on.
-    tree_list = directory_traverse(dirpath, dates)
-
-    for relpath in tree_list:
-        fullpath = os.path.join(dirpath, relpath)
-        # find only files which are complete, i.e. end with ".dat", there
-        # for no partial files will be uploaded.
-        fns = [ff for ff in os.listdir(fullpath) if re.match(r".*\.dat$", ff)]
-        logger.debug(("number of file to reimport, in current directory = {}"
-                      ).format(len(fns)))
-        for fn in fns:
-            ffn = os.path.join(fullpath, fn)
-            # parse to sql
-            sql_ffn = parse_TOA5_sql(ffn)
-            result = copy2db_execute(sql_ffn, dbconn)
-            logger.info(result + "  fn = {}".format(fn))
-            if result == "COPY Successful.":
-                os.remove(sql_ffn)
-                logger.debug("SQL formated file deleted: {}".format(sql_ffn))
-    return None
 
 
 def arg_parse(argv=None):
@@ -1476,8 +1247,8 @@ def arg_check(args):
         if False in checkpath:
             msg = "{}".format([os.path.join(dirpath, fn)
                                for fn, cp in zip(fnames, checkpath)
-                               if not(cp)])
-            logger.error("filename does not exist:\n"+msg+"\nABORT!")
+                               if not cp])
+            logger.error("filename does not exist:\n%s\nABORT!", msg)
             email_exit()
     else:
         fn_pattern = r"^(ham|sto)[SAM]{1}[0-9a-z-_]{5}\.bdat$"
@@ -1495,24 +1266,10 @@ def arg_check(args):
         argdict = args.__dict__
         for key in argdict.keys():
             logstr += "\t{:<15} - {}".format(key, argdict[key]) + "\n"
-        logger.debug('\nOptional Arguments: \n' + logstr)
-    # dates
-    if args.dates:
-        try:
-            dates = [datetime.datetime.strptime(xx, '%Y-%m-%d').date()
-                     for xx in args.dates]
-        except ValueError:
-            logger.exception(("'--dates' arguments in wrong format; must be "
-                              "YYYY-MM-DD, for both dates.\nABORT!"))
-            email_exit()
-        except Exception:
-            logger.exception("{}  ABORT!".format(dates))
-            email_exit()
-    else:
-        dates = None
+        logger.debug('\nOptional Arguments: \n%s', logstr)
     # save
-    delete_datalogger_fn = not(args.save)
-    return dirpath, fnames, dbconn, dates, delete_datalogger_fn
+    delete_datalogger_fn = not args.save
+    return dirpath, fnames, dbconn, delete_datalogger_fn
 
 
 def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
@@ -1521,7 +1278,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
     """
     logger = logging.getLogger(__name__)
     for fn in fnames:
-        logger.info("="*10 + "{:^20}".format(fn) + "="*10)
+        logger.info("%s%s%s", "="*10, "{:^20}".format(fn), "="*10)
         # set input and output file names
         ffn = os.path.join(dirpath, fn)
         try:
@@ -1530,18 +1287,17 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             # just check header for file type
             with open(ffn, "rb") as rf:
                 file_type = rf.read(6).decode('ascii', 'ignore')
-            logger.debug(("file: {}; type: {}; TOA5:{}"
-                          ).format(fn, file_type, toa5_file))
+            logger.debug(
+                "file: %s; type: %s; TOA5: %s", fn, file_type, toa5_file)
             # call appropriate function
             if file_type == '"TOB1"':
                 rec_cnt = decode_TOB1(ffn, toa5_file)
-                logger.info("file: {} ; records written: {}".format(fn,
-                                                                    rec_cnt))
+                logger.info("file: %s; records written: %s", fn, rec_cnt)
             elif file_type == '"TOB3"':
                 rec_cnt = decode_TOB3(ffn, toa5_file)
-                logger.info(("file: {} ; records written: {} ; "
-                             "header expected: {}"
-                             ).format(fn, *rec_cnt))
+                logger.info(
+                    "file: %s; records written: %s; header expected: %s", fn,
+                    *rec_cnt)
             elif file_type == '"TOB2"':
                 logger.critical('No script to decode "TOB2" file types')
             else:
@@ -1562,24 +1318,24 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                 chkmkdir(restingplace)
                 restingfn = "%s/%s_%s" % (restingplace,
                                           valid.strftime("%Y%m%d%H%M"), fn)
-                logger.debug("moving {} to {}".format(fn, restingfn))
+                logger.debug("moving %s to %s", fn, restingfn)
                 os.rename(ffn, restingfn)
-                logger.debug("deleteing SQL formated file: {}".format(sql_ffn))
+                logger.debug("deleteing SQL formated file: %s", sql_ffn)
                 os.remove(sql_ffn)
                 # delete file on CR6 ???
                 if delete_datalogger_fn:
-                    logger.info(("deleteing DataLogger file "
-                                 "associated with: {}"
-                                 ).format(fn))
+                    logger.info(
+                        "deleteing DataLogger file associated with: %s", fn)
                     ftp_del(fn)
             else:
                 # trigger quarentine
-                _ = 1 / 0
-        except:
+                raise Exception("DBCopy failed")
+        except Exception as exp:
+            logger.debug(exp)
             quarentine_path = os.path.join(dirpath, 'quarentine')
             chkmkdir(quarentine_path)
-            logger.exception(("{}  FAILED.  Moved to '{}'"
-                              ).format(fn, quarentine_path))
+            logger.exception(
+                "%s FAILED. Moved to '%s'", fn, quarentine_path)
             # move file
             os.rename(ffn, os.path.join(quarentine_path, fn))
 
@@ -1588,26 +1344,19 @@ def main(argv):
     """
     The starting point, when program is called.
     """
+    logger = logging.getLogger(__name__)
+    logger.info("%s%s%s", "*" * 20, "  STARTING  ", "*" * 20)
     # parse the args, from Command Line
     args = arg_parse(argv)
     # check the args
-    (dirpath, fnames, dbconn, dates, delete_datalogger_fn) = arg_check(args)
+    (dirpath, fnames, dbconn, delete_datalogger_fn) = arg_check(args)
 
     # set consumed directory
     consumed_dir = os.path.join(dirpath, 'consumed')
     chkmkdir(consumed_dir)
-    # reparse ASCII data or start with CSI binary data?
-    if dates:
-        reparse_sql(dirpath, dates, dbconn)  # reparse ASCII
-    else:
-        # CSI binary
-        bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn)
+    # CSI binary
+    bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn)
+
 
 if __name__ == "__main__":
-    # notes
-    # -----
-    # logger already set, immediatly after import
-    # envornomental varialbes set during import
-    logger = logging.getLogger(__name__)
-    logger.info("*"*20 + "  STARTING  " + "*"*20)
     main(sys.argv[1:])

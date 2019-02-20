@@ -28,8 +28,8 @@ class logger_configurator():
         "disable_existing_loggers": False,
         "formatters": {
             "simple": {
-                "format": ("%(asctime)s -- [%(funcName)s] -- "
-                           "%(levelname)s -- %(message)s")
+                "format": ("%(asctime)s %(levelname)5.5s "
+                           "%(funcName)14.14s  %(message)s")
             },
             "errors": {
                 "format": ("%(asctime)s -- [%(funcName)s   line:%(lineno)3d] "
@@ -40,7 +40,7 @@ class logger_configurator():
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "level": "DEBUG",
+                "level": "ERROR",
                 "formatter": "simple",
                 "stream": "ext://sys.stdout"
             },
@@ -81,7 +81,7 @@ class logger_configurator():
             self.log_conf_dict["handlers"]["info_file_handler"]["filename"])
 
     def make_log_files(self):
-        # create the paths to the files
+        """create the paths to the files."""
         self.touch(self.ffn_error)
         self.touch(self.ffn_log)
 
