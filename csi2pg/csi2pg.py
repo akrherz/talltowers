@@ -726,8 +726,10 @@ def decode_TOB1(ffn, toa5_file):
     with open(ffn, "rb") as rf:
         # read the 5 header lines into variable and then parse it.
         for _ in range(5):
-            header.append((rf.readline().replace('"', "")
-                           .replace("\r\n", "").replace("\n", "").split(",")))
+            header.append(
+                (rf.readline().decode('ascii', 'ignore').replace('"', "")
+                 .replace("\r\n", "").replace("\n", "").split(","))
+            )
         # extract header information
         #  bl := Byte Length; list of bytes length per measurment for each
         #        record.
