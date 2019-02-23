@@ -1336,7 +1336,8 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             logger.debug(exp)
             quarentine_path = os.path.join(dirpath, 'quarentine')
             chkmkdir(quarentine_path)
-            logger.exception(
+            func = logger.exception if fn[3] != 'M' else logger.warn
+            func(
                 "%s FAILED. Moved to '%s'", fn, quarentine_path)
             # move file
             os.rename(ffn, os.path.join(quarentine_path, fn))
