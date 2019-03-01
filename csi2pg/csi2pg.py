@@ -1105,10 +1105,13 @@ def parse_TOA5_sql(ffn, dirpath=None):
                                                else None))
     tmin = df['valid'].min()
     tmax = df['valid'].max()
-    if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
-        logger.exception(
-            "TOA5 file: %s has invalid time domain: %s %s", ffn, tmin, tmax)
     if table != 'monitor':
+        # data insert below uses a single table, so this situation is not
+        # handled properly
+        if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
+            logger.exception(
+                "TOA5 file: %s has unsupported time domain: %s %s",
+                ffn, tmin, tmax)
         table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
     else:
         table = "data_monitor"
