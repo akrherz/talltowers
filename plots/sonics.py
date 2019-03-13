@@ -10,10 +10,11 @@ import datetime
 from dateutil import tz
 import psycopg2
 from pandas.io.sql import read_sql
-import matplotlib
-matplotlib.use('Agg')  # Must be before importing matplotlib.pyplot.
-import matplotlib.pyplot as plt  # NOPEP8
+from pandas.plotting import register_matplotlib_converters
 import matplotlib.dates as mdates  # NOPEP8
+from pyiem.plot.use_agg import plt
+register_matplotlib_converters()
+
 # get database credentials
 CONFIG = json.load(open("../config/settings.json", 'r'))
 
@@ -60,7 +61,7 @@ for key, value in plot_dict.items():
             """, conn, params=(siteid, time_data_start, time_now),
                       index_col='ts')
 
-        if len(df.index) > 0:
+        if not df.empty:
             # === PLOT ===
             fig, ax = plt.subplots(figsize=(17, 11))
             ts = df.index

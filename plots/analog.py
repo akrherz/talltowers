@@ -11,10 +11,10 @@ import datetime
 from dateutil import tz
 import psycopg2
 from pandas.io.sql import read_sql
-import matplotlib
-matplotlib.use('Agg')  # Must be before importing matplotlib.pyplot.
-import matplotlib.pyplot as plt  # NOPEP8
+from pandas.plotting import register_matplotlib_converters
 import matplotlib.dates as mdates  # NOPEP8
+from pyiem.plot.use_agg import plt
+register_matplotlib_converters()
 
 CONFIG = json.load(open("../config/settings.json", 'r'))
 
@@ -72,18 +72,17 @@ for key, value in plot_dict.items():
             GROUP by ts ORDER by ts ASC
             """, conn, params=(siteid, time_data_start, time_now),
                       index_col='ts')
-        if len(df.index) > 0:
+        if not df.empty:
             fig, ax = plt.subplots(figsize=(17, 11))
             # do not rely on Pandas.DataFrame.plot(), because it uses
             # differnet dates than
             #   matplotlib, and because matplot lib will be invoked to
             # customize this plo,
             #   keep it matplotlib thoughout.
-            ts = df.index
             for col in df:
                 if df[col].isnull().all():
                     continue
-                ax.plot(ts, df[col], label=col)
+                ax.plot(df.index.values, df[col], label=col)
             # set legend and titles
             lgnd = ax.legend(loc='best')
             plot_title = ("One minute average of last {} hours of {} "
