@@ -130,7 +130,7 @@ def write_sonic_data(valid, nc):
         vname = col.replace(v, xref.get(v, v))
         data = np.ones(nc.variables[vname].shape, np.double) * 1e37
         for row in df[['tower', 'delta', 'sample', col]].itertuples():
-            data[int(row[2]), row[3], row[1]] = row[4]
+            data[int(row[2]), int(row[3]), int(row[1])] = row[4]
         nc.variables[vname][:] = data
 
 
@@ -153,7 +153,7 @@ def write_analog_data(valid, nc):
         data = np.ones(nc.variables[col.replace("nwht", "nw")].shape,
                        np.double) * 1e37
         for row in df[['tower', 'delta', col]].itertuples():
-            data[int(row[2]), row[1]] = row[3]
+            data[int(row[2]), int(row[1])] = row[3]
         nc.variables[col.replace("nwht", "nw")][:] = data
 
 
