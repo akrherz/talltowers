@@ -90,6 +90,9 @@ def ingest(valid):
         fn = valid.strftime(
             "/home/sodar/triton_963_%Y-%m-%d-%H-%M_" + suffix + ".csv"
         )
+        if not os.path.isfile(fn):
+            print("process_sodar %s missing" % (fn, ))
+            continue
         try:
             df = pd.read_csv(fn)
         except Exception as exp:
@@ -168,7 +171,12 @@ def main(argv):
     valid = valid.replace(tzinfo=pytz.UTC)
     for offset in [0, 1, 6, 24, 72]:
         valid2 = valid - datetime.timedelta(hours=offset)
-        if download_files(valid2, offset) > 0:
+        downloaded = download_files(valid2, offset)
+        # Make sure we have a quorum
+        if offset == 0 and downloaded == 3:
+            ingest(valid2)
+        # if previous times downloaded files, do that too
+        elif offset > 0 and downloaded > 0:
             ingest(valid2)
 
 
