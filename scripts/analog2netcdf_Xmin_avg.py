@@ -139,7 +139,8 @@ def write_analog_data(valid, nc, window):
     lgsql = ", ".join(lgsql)
 
     cursor = PGCONN.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    for i, tstep in enumerate(tqdm(nc.variables['time'][:])):
+    for i, tstep in enumerate(
+            tqdm(nc.variables['time'][:], disable=(not sys.stdout.isatty()))):
         ets = valid + datetime.timedelta(seconds=tstep)
         sts = ets - datetime.timedelta(seconds=window * 60)
         cursor.execute("""
@@ -174,9 +175,13 @@ def do(valid, window):
 
 def main(argv):
     """Run"""
-    valid = datetime.datetime(int(argv[1]), int(argv[2]), 1)
+    if len(argv) == 2:
+        valid = datetime.datetime.now() - datetime.timedelta(days=5)
+        valid = valid.replace(day=1)
+    else:
+        valid = datetime.datetime(int(argv[2]), int(argv[3]), 1)
     valid = valid.replace(tzinfo=pytz.utc)
-    do(valid, int(argv[3]))
+    do(valid, int(argv[1]))
 
 
 if __name__ == '__main__':

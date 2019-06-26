@@ -1,0 +1,7 @@
+*/10 * * * * cd projects/talltowers/sodar; sh run.sh
+*/10 * * * * cd projects/talltowers/csi2pg; /opt/miniconda3/envs/prod/bin/python csi2pg.py
+
+# Dump monthly files
+11 10 1 * * cd projects/talltowers/scripts; /opt/miniconda3/envs/prod/bin/python analog2netcdf_Xmin_avg.py 1
+11 20 1 * * cd projects/talltowers/scripts; /opt/miniconda3/envs/prod/bin/python analog2netcdf_Xmin_avg.py 5
+11 23 1 * * cd projects/talltowers/scripts; /opt/miniconda3/envs/prod/bin/python analog2netcdf_Xmin_avg.py 10
