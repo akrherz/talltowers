@@ -9,6 +9,7 @@ import pytz
 import psycopg2.extras
 from tqdm import tqdm
 import numpy as np
+from pyiem.util import utc
 
 CONFIG = json.load(open("../config/settings.json", 'r'))
 PGCONN = psycopg2.connect(('host={hostname} dbname={dbname} '
@@ -177,10 +178,9 @@ def main(argv):
     """Run"""
     if len(argv) == 2:
         valid = datetime.datetime.now() - datetime.timedelta(days=5)
-        valid = valid.replace(day=1)
     else:
         valid = datetime.datetime(int(argv[2]), int(argv[3]), 1)
-    valid = valid.replace(tzinfo=pytz.utc)
+    valid = utc(valid.year, valid.month, valid.day)
     do(valid, int(argv[1]))
 
 
