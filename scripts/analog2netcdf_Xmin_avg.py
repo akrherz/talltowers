@@ -176,10 +176,7 @@ def do(valid, window):
 
 def main(argv):
     """Run"""
-    if len(argv) == 2:
-        valid = datetime.datetime.now() - datetime.timedelta(days=5)
-    else:
-        valid = datetime.datetime(int(argv[2]), int(argv[3]), 1)
+    valid = datetime.datetime(int(argv[2]), int(argv[3]), 1)
     valid = utc(valid.year, valid.month, valid.day)
     do(valid, int(argv[1]))
 
