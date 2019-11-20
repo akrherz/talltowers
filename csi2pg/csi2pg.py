@@ -1343,7 +1343,10 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             func(
                 "%s FAILED. Moved to '%s'", fn, quarentine_path)
             # move file
-            os.rename(ffn, os.path.join(quarentine_path, fn))
+            try:
+                os.rename(ffn, os.path.join(quarentine_path, fn))
+            except Exception:
+                pass
 
 
 def main(argv):
