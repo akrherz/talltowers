@@ -1327,13 +1327,13 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                 os.rename(ffn, restingfn)
                 logger.debug("deleteing SQL formated file: %s", sql_ffn)
                 os.remove(sql_ffn)
-                # delete file on CR6 ???
-                if delete_datalogger_fn:
-                    logger.info(
-                        "deleteing DataLogger file associated with: %s", fn)
-                    ftp_del(fn)
+                logger.info(
+                    "deleteing DataLogger file associated with: %s", fn)
+                ftp_del(fn)
             else:
-                # trigger quarentine
+                logger.info(
+                    "deleteing DataLogger file associated with: %s", fn)
+                ftp_del(fn)
                 raise Exception("DBCopy failed")
         except Exception as exp:
             logger.debug(exp)
