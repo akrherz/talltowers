@@ -235,7 +235,7 @@ BEGIN;
   CREATE TABLE data_sonic_201912(
   CONSTRAINT __data_sonic_201912_check
   CHECK(valid > '2019-12-01 00:00+00'::timestamptz
-        and valid <= '2019-01-01 00:00+00'))
+        and valid <= '2020-01-01 00:00+00'))
   INHERITS(data_sonic);
   CREATE INDEX data_sonic_201912_idx on data_sonic_201912(tower, valid);
   GRANT ALL on data_sonic_201912 to tt_script,tt_admin;
