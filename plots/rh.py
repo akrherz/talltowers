@@ -5,17 +5,36 @@ import datetime
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator
 
-pgconn = psycopg2.connect(host='talltowers-db.agron.iastate.edu',
-                          user='tt_web', database='talltowers')
+pgconn = psycopg2.connect(
+    host="talltowers-db.agron.iastate.edu",
+    user="tt_web",
+    database="talltowers",
+)
 v = "uz"
-df = read_sql("""
- SELECT date_trunc('microsecond', valid) as ts, avg("""+v+"""_5m) as avg_rh_5m,
- avg("""+v+"""_10m) as avg_rh_10m, avg("""+v+"""_20m) as avg_rh_20m,
- avg("""+v+"""_40m) as avg_rh_40m,
- avg("""+v+"""_80m) as avg_rh_80m, avg("""+v+"""_120m) as avg_rh_120m
+df = read_sql(
+    """
+ SELECT date_trunc('microsecond', valid) as ts, avg("""
+    + v
+    + """_5m) as avg_rh_5m,
+ avg("""
+    + v
+    + """_10m) as avg_rh_10m, avg("""
+    + v
+    + """_20m) as avg_rh_20m,
+ avg("""
+    + v
+    + """_40m) as avg_rh_40m,
+ avg("""
+    + v
+    + """_80m) as avg_rh_80m, avg("""
+    + v
+    + """_120m) as avg_rh_120m
  from data_sonic WHERE tower = 0 and valid > '2017-05-01 00:00:00+00'
  and valid < '2017-05-01 02:00:00+00'
- GROUP by ts ORDER by ts ASC""", pgconn, index_col='ts')
+ GROUP by ts ORDER by ts ASC""",
+    pgconn,
+    index_col="ts",
+)
 print len(df.index)
 x = []
 y = []
@@ -52,5 +71,5 @@ ax.set_xticks(xticks)
 ax.set_xticklabels(xticklabels, rotation=15)
 ax.grid()
 ax.set_title("Story Tower - 11 Aug 2016 ~1140 UTC~ Sonic Vertical Wind Speed")
-fig.colorbar(res, label='mps')
-fig.savefig('test.png')
+fig.colorbar(res, label="mps")
+fig.savefig("test.png")

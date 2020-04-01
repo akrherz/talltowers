@@ -16,11 +16,14 @@ from ftplib import FTP
 import pandas as pd
 import pytz
 import psycopg2
+
 COLRE = re.compile("^(?P<elev>[0-9]+)m (?P<name>.*?)-?(?P<extra>[ABC])?$")
-CONFIG = json.load(open("../config/settings.json", 'r'))
-PGCONN = psycopg2.connect(('host={hostname} dbname={dbname} '
-                           'user={dbuser} password={dbpass}'
-                           ).format(**CONFIG['dbconn']))
+CONFIG = json.load(open("../config/settings.json", "r"))
+PGCONN = psycopg2.connect(
+    (
+        "host={hostname} dbname={dbname} " "user={dbuser} password={dbpass}"
+    ).format(**CONFIG["dbconn"])
+)
 
 
 def nice(val):
@@ -34,35 +37,57 @@ def dbsave(df, valid):
     """Save to the database, a dataframe"""
     table = "sodar_profile" if "beamnum" in df.columns else "sodar_surface"
     cursor = PGCONN.cursor()
-    cursor.execute("""
-    DELETE from """ + table + """ WHERE station = 963 and valid = %s
-    """, (valid, ))
+    cursor.execute(
+        """
+    DELETE from """
+        + table
+        + """ WHERE station = 963 and valid = %s
+    """,
+        (valid,),
+    )
     if table == "sodar_surface":
-        cols = ['station', 'valid']
-        args = ['963', valid]
+        cols = ["station", "valid"]
+        args = ["963", valid]
         row = df.iloc[0]
         for col in df.columns:
             args.append(nice(row[col]))
             cols.append(col)
         cols = ",".join(cols)
         vals = ",".join(["%s"] * len(args))
-        cursor.execute("""
-            INSERT into """ + table + """(""" + cols + """)
-            VALUES (""" + vals + """)
-        """, args)
+        cursor.execute(
+            """
+            INSERT into """
+            + table
+            + """("""
+            + cols
+            + """)
+            VALUES ("""
+            + vals
+            + """)
+        """,
+            args,
+        )
     else:
         for _, row in df.iterrows():
-            cols = ['station', 'valid']
-            args = ['963', valid]
+            cols = ["station", "valid"]
+            args = ["963", valid]
             for col in df.columns:
                 args.append(nice(row[col]))
                 cols.append(col)
             cols = ",".join(cols)
             vals = ",".join(["%s"] * len(args))
-            sql = """
-                INSERT into """ + table + """(""" + cols + """)
-                VALUES (""" + vals + """)
+            sql = (
+                """
+                INSERT into """
+                + table
+                + """("""
+                + cols
+                + """)
+                VALUES ("""
+                + vals
+                + """)
             """
+            )
             cursor.execute(sql, args)
 
     cursor.close()
@@ -80,18 +105,18 @@ def translate_column(col):
     if m is None:
         return [None, strcol(col), None]
     res = m.groupdict()
-    return [res['elev'], strcol(res['name']), res['extra']]
+    return [res["elev"], strcol(res["name"]), res["extra"]]
 
 
 def ingest(valid):
     """Process the files."""
     dfs = []
-    for suffix in ['extended', 'operational', 'standard']:
+    for suffix in ["extended", "operational", "standard"]:
         fn = valid.strftime(
             "/home/sodar/triton_963_%Y-%m-%d-%H-%M_" + suffix + ".csv"
         )
         if not os.path.isfile(fn):
-            print("process_sodar %s missing" % (fn, ))
+            print("process_sodar %s missing" % (fn,))
             continue
         try:
             df = pd.read_csv(fn)
@@ -112,22 +137,21 @@ def ingest(valid):
             surface[res[1]] = val
         else:
             profiles.append(
-                {'labelin': "%s_%s" % (res[0],
-                                       res[2] if res[2] is not None else '0'),
-                 'colname': res[1],
-                 'value': val
-                 }
+                {
+                    "labelin": "%s_%s"
+                    % (res[0], res[2] if res[2] is not None else "0"),
+                    "colname": res[1],
+                    "value": val,
+                }
             )
     profile = pd.DataFrame(profiles)
     profile2 = profile.pivot(
-        index='labelin',
-        values='value',
-        columns='colname'
+        index="labelin", values="value", columns="colname"
     )
     profile2.reset_index(inplace=True)
-    profile2['height'] = profile2['labelin'].str.split("_").str.get(0)
-    profile2['label'] = profile2['labelin'].str.split("_").str.get(1)
-    profile2.drop('labelin', axis=1, inplace=True)
+    profile2["height"] = profile2["labelin"].str.split("_").str.get(0)
+    profile2["label"] = profile2["labelin"].str.split("_").str.get(1)
+    profile2.drop("labelin", axis=1, inplace=True)
     dbsave(profile2, valid)
     surface = pd.DataFrame([surface])
     dbsave(surface, valid)
@@ -135,22 +159,22 @@ def ingest(valid):
 
 def download_files(valid, offset):
     """Get the files for this valid time."""
-    settings = json.loads(open('secret.json').read())
+    settings = json.loads(open("secret.json").read())
     conn = None
     downloaded = 0
-    for suffix in ['extended', 'operational', 'standard']:
+    for suffix in ["extended", "operational", "standard"]:
         remotefn = valid.strftime(
             "963/triton_963_%Y-%m-%d-%H-%M_" + suffix + ".csv"
         )
-        localfn = "/home/sodar/%s" % (remotefn[4:], )
+        localfn = "/home/sodar/%s" % (remotefn[4:],)
         if os.path.isfile(localfn):
             continue
         if conn is None:
-            conn = FTP(settings['host'])
-            conn.login(settings['username'], settings['password'])
-        fp = open(localfn, 'wb')
+            conn = FTP(settings["host"])
+            conn.login(settings["username"], settings["password"])
+        fp = open(localfn, "wb")
         try:
-            conn.retrbinary('RETR %s' % (remotefn, ), fp.write)
+            conn.retrbinary("RETR %s" % (remotefn,), fp.write)
         except Exception as exp:
             if offset > 0:
                 print("download of %s failed with %s" % (remotefn, exp))
@@ -166,8 +190,9 @@ def download_files(valid, offset):
 
 def main(argv):
     """Go Main"""
-    valid = datetime.datetime(int(argv[1]), int(argv[2]), int(argv[3]),
-                              int(argv[4]), int(argv[5]))
+    valid = datetime.datetime(
+        int(argv[1]), int(argv[2]), int(argv[3]), int(argv[4]), int(argv[5])
+    )
     valid = valid.replace(tzinfo=pytz.UTC)
     for offset in [0, 1, 6, 24, 72]:
         valid2 = valid - datetime.timedelta(hours=offset)
@@ -180,5 +205,5 @@ def main(argv):
             ingest(valid2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv)

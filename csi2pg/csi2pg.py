@@ -6,13 +6,13 @@ See `README.md` for more details on this code
 @author: joesmith@iastate.edu
 """
 
-import argparse   # use command line arguments
-import os         # os.path.join()  &  os.listdir()
-import datetime   # datetime & timedelta
-import sys        # sys.exit() & email (tail -5) & sys.path.append
-import re         # re.match()
-import struct     # unpacking binary
-import ftplib     # deleting file from datalogger
+import argparse  # use command line arguments
+import os  # os.path.join()  &  os.listdir()
+import datetime  # datetime & timedelta
+import sys  # sys.exit() & email (tail -5) & sys.path.append
+import re  # re.match()
+import struct  # unpacking binary
+import ftplib  # deleting file from datalogger
 import json
 
 # email
@@ -34,7 +34,7 @@ import psycopg2
 from log_conf import logger_configurator  # @UnresolvedImport
 
 # assume we run the script from this directory
-CONFIG = json.load(open("../config/settings.json", 'r'))
+CONFIG = json.load(open("../config/settings.json", "r"))
 
 # create logger
 logger_config = logger_configurator()
@@ -50,45 +50,45 @@ data_type_dict = {
     # in one type of TOB file
     # name         format        size         reformat_string
     # {Bool8} string of eight bits; the bit order is reveresed (no idea why.)
-    'BOOL8': {'fmt': 'B', 'size': 1, 'refmt': '"{}"'},
+    "BOOL8": {"fmt": "B", "size": 1, "refmt": '"{}"'},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL4': {'fmt': '4B', 'size': 4, 'refmt': '{}'},
+    "BOOL4": {"fmt": "4B", "size": 4, "refmt": "{}"},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL2': {'fmt': '2B', 'size': 2, 'refmt': '{}'},
+    "BOOL2": {"fmt": "2B", "size": 2, "refmt": "{}"},
     # {Boolean} "0" or "-1" (aka. False/True)
-    'BOOL': {'fmt': 'B', 'size': 1, 'refmt': '{}'},
+    "BOOL": {"fmt": "B", "size": 1, "refmt": "{}"},
     #
-    'UINT2': {'fmt': '>H', 'size': 2, 'refmt': '{}'},
+    "UINT2": {"fmt": ">H", "size": 2, "refmt": "{}"},
     #   TOB1
-    'UINT4': {'fmt': '>L', 'size': 4, 'refmt': '{}'},
+    "UINT4": {"fmt": ">L", "size": 4, "refmt": "{}"},
     #   TOB3
-    'INT4': {'fmt': '>l', 'size': 4, 'refmt': '{}'},
+    "INT4": {"fmt": ">l", "size": 4, "refmt": "{}"},
     # {TIMESTAMP & RECORD}
-    'ULONG': {'fmt': '<L', 'size': 4, 'refmt': '{}'},
+    "ULONG": {"fmt": "<L", "size": 4, "refmt": "{}"},
     # {Long} signed integer; twos compliment! ?????
-    'LONG': {'fmt': '<l', 'size': 4, 'refmt': '{}'},
+    "LONG": {"fmt": "<l", "size": 4, "refmt": "{}"},
     # {FP2}
-    'FP2': {'fmt': '>H', 'size': 2, 'refmt': '{:.4g}'},
+    "FP2": {"fmt": ">H", "size": 2, "refmt": "{:.4g}"},
     # {IEEE4}  little-Endian for TOB1 !!!  TOB1
-    'IEEE4': {'fmt': '<f', 'size': 4, 'refmt': '{:.7g}'},
+    "IEEE4": {"fmt": "<f", "size": 4, "refmt": "{:.7g}"},
     # {IEEE4}  little-Endian for TOB1 !!!  ...same as IEEE4
-    'IEEE4L': {'fmt': '<f', 'size': 4, 'refmt': '{:.7g}'},
+    "IEEE4L": {"fmt": "<f", "size": 4, "refmt": "{:.7g}"},
     # {IEEE4}   Big-Endian  for  TOB3 !!!  TOB3
-    'IEEE4B': {'fmt': '>f', 'size': 4, 'refmt': '{:.7g}'},
+    "IEEE4B": {"fmt": ">f", "size": 4, "refmt": "{:.7g}"},
     # {Nsec} string YYYY-MM-DD hh:mm:ss.  TOB1
-    'SecNano': {'fmt': '<2L', 'size': 8, 'refmt': '"{}"'},
+    "SecNano": {"fmt": "<2L", "size": 8, "refmt": '"{}"'},
     # {Nsec} string YYYY-MM-DD hh:mm:ss.  TOB3
-    'NSec': {'fmt': '>2I', 'size': 8, 'refmt': '"{}"'},
+    "NSec": {"fmt": ">2I", "size": 8, "refmt": '"{}"'},
     # {String}; is still in ASCII, NOT binary!!!
-    'ASCII': {'fmt': 's', 'size': None, 'refmt': '"{}"'},
+    "ASCII": {"fmt": "s", "size": None, "refmt": '"{}"'},
 }
 
 FILE_TYPE_DICT = {
     # for TOB2 & TOB3
     # fhs := frame header size
     # ffs := frame footer size
-    'TOB2': {'fhs':  8, 'ffs': 4},
-    'TOB3': {'fhs': 12, 'ffs': 4},
+    "TOB2": {"fhs": 8, "ffs": 4},
+    "TOB3": {"fhs": 12, "ffs": 4},
 }
 
 INTERVAL_DICT = {
@@ -97,13 +97,13 @@ INTERVAL_DICT = {
     # (header line 2) from,
     #   its subseconds (integer) into seconds (float value, if result is less
     # than one second)
-    'NSEC': 1e-9,
-    'USEC': 1e-6,
-    'MSEC': 1e-3,
-    'SEC':  1,
-    'MIN':  60,
-    'HR':   3600,
-    'DAY':  86400,
+    "NSEC": 1e-9,
+    "USEC": 1e-6,
+    "MSEC": 1e-3,
+    "SEC": 1,
+    "MIN": 60,
+    "HR": 3600,
+    "DAY": 86400,
 }
 
 resolution_dict = {
@@ -116,52 +116,135 @@ resolution_dict = {
     # microseconds.
     # MICROsecond are the 3rd value in datatime.timedelta(day,seconds,
     # microseconds)
-    'Sec10Usec':  10,
-    'Sec100Usec': 100,
-    'SecUSec':    10,
+    "Sec10Usec": 10,
+    "Sec100Usec": 100,
+    "SecUSec": 10,
 }
 
 # expected file header
 #   used as a check, before importing into database
-analog = ["TIMESTAMP", "RECORD", "AirTC_120m_1", "AirTC_120m_2", "AirTC_80m",
-          "AirTC_40m", "AirTC_20m", "AirTC_10m", "AirTC_5m", "RH_120m_1",
-          "RH_120m_2", "RH_80m", "RH_40m", "RH_20m", "RH_10m", "RH_5m",
-          "BP_80m", "BP_10m", "WS_120m_NWht", "WS_120m_S", "WS_80m_NW",
-          "WS_80m_S", "WS_40m_NWht", "WS_40m_S", "WS_20m_NW", "WS_20m_S",
-          "WS_10m_NWht", "WS_10m_S", "WS_5m_NW", "WS_5m_S", "WindDir_120m_NW",
-          "WindDir_120m_S", "WindDir_80m_NW", "WindDir_80m_S",
-          "WindDir_40m_NW", "WindDir_40m_S", "WindDir_20m_NW",
-          "WindDir_20m_S", "WindDir_10m_NW", "WindDir_10m_S", "WindDir_5m_NW",
-          "WindDir_5m_S"]
-sonic = ["TIMESTAMP", "RECORD", "Ux_120m", "Uy_120m", "Uz_120m", "Ts_120m",
-         "Diag_120m", "Ux_80m", "Uy_80m", "Uz_80m", "Ts_80m", "Diag_80m",
-         "Ux_40m", "Uy_40m", "Uz_40m", "Ts_40m", "Diag_40m", "Ux_20m",
-         "Uy_20m", "Uz_20m", "Ts_20m", "Diag_20m", "Ux_10m", "Uy_10m",
-         "Uz_10m", "Ts_10m", "Diag_10m", "Ux_5m", "Uy_5m", "Uz_5m",
-         "Ts_5m", "Diag_5m"]
-monitor = ["TIMESTAMP", "RECORD", "CR6_BattV", "CR6_PTemp", "BoardTemp_120m",
-           "BoardHumidity_120m", "InclinePitch_120m", "InclineRoll_120m",
-           "BoardTemp_80m", "BoardHumidity_80m", "InclinePitch_80m",
-           "InclineRoll_80m", "BoardTemp_40m", "BoardHumidity_40m",
-           "InclinePitch_40m", "InclineRoll_40m", "BoardTemp_20m",
-           "BoardHumidity_20m", "InclinePitch_20m", "InclineRoll_20m",
-           "BoardTemp_10m", "BoardHumidity_10m", "InclinePitch_10m",
-           "InclineRoll_10m", "BoardTemp_5m", "BoardHumidity_5m",
-           "InclinePitch_5m", "InclineRoll_5m"]
-CHK_HEADER = {'analog': analog, 'sonic': sonic, 'monitor': monitor}
+analog = [
+    "TIMESTAMP",
+    "RECORD",
+    "AirTC_120m_1",
+    "AirTC_120m_2",
+    "AirTC_80m",
+    "AirTC_40m",
+    "AirTC_20m",
+    "AirTC_10m",
+    "AirTC_5m",
+    "RH_120m_1",
+    "RH_120m_2",
+    "RH_80m",
+    "RH_40m",
+    "RH_20m",
+    "RH_10m",
+    "RH_5m",
+    "BP_80m",
+    "BP_10m",
+    "WS_120m_NWht",
+    "WS_120m_S",
+    "WS_80m_NW",
+    "WS_80m_S",
+    "WS_40m_NWht",
+    "WS_40m_S",
+    "WS_20m_NW",
+    "WS_20m_S",
+    "WS_10m_NWht",
+    "WS_10m_S",
+    "WS_5m_NW",
+    "WS_5m_S",
+    "WindDir_120m_NW",
+    "WindDir_120m_S",
+    "WindDir_80m_NW",
+    "WindDir_80m_S",
+    "WindDir_40m_NW",
+    "WindDir_40m_S",
+    "WindDir_20m_NW",
+    "WindDir_20m_S",
+    "WindDir_10m_NW",
+    "WindDir_10m_S",
+    "WindDir_5m_NW",
+    "WindDir_5m_S",
+]
+sonic = [
+    "TIMESTAMP",
+    "RECORD",
+    "Ux_120m",
+    "Uy_120m",
+    "Uz_120m",
+    "Ts_120m",
+    "Diag_120m",
+    "Ux_80m",
+    "Uy_80m",
+    "Uz_80m",
+    "Ts_80m",
+    "Diag_80m",
+    "Ux_40m",
+    "Uy_40m",
+    "Uz_40m",
+    "Ts_40m",
+    "Diag_40m",
+    "Ux_20m",
+    "Uy_20m",
+    "Uz_20m",
+    "Ts_20m",
+    "Diag_20m",
+    "Ux_10m",
+    "Uy_10m",
+    "Uz_10m",
+    "Ts_10m",
+    "Diag_10m",
+    "Ux_5m",
+    "Uy_5m",
+    "Uz_5m",
+    "Ts_5m",
+    "Diag_5m",
+]
+monitor = [
+    "TIMESTAMP",
+    "RECORD",
+    "CR6_BattV",
+    "CR6_PTemp",
+    "BoardTemp_120m",
+    "BoardHumidity_120m",
+    "InclinePitch_120m",
+    "InclineRoll_120m",
+    "BoardTemp_80m",
+    "BoardHumidity_80m",
+    "InclinePitch_80m",
+    "InclineRoll_80m",
+    "BoardTemp_40m",
+    "BoardHumidity_40m",
+    "InclinePitch_40m",
+    "InclineRoll_40m",
+    "BoardTemp_20m",
+    "BoardHumidity_20m",
+    "InclinePitch_20m",
+    "InclineRoll_20m",
+    "BoardTemp_10m",
+    "BoardHumidity_10m",
+    "InclinePitch_10m",
+    "InclineRoll_10m",
+    "BoardTemp_5m",
+    "BoardHumidity_5m",
+    "InclinePitch_5m",
+    "InclineRoll_5m",
+]
+CHK_HEADER = {"analog": analog, "sonic": sonic, "monitor": monitor}
 
 # decoding dict for decode_filename()
-table_code = {'S': 'sonic', 'A': 'analog', 'M': 'monitor'}
+table_code = {"S": "sonic", "A": "analog", "M": "monitor"}
 
 # database's chn_id code
 #  based on decode_filename()'s file naming convetions
 CHN_CODE = {
-    'sites': {'sto': 1, 'ham': 0},
-    'tables': {'analog': 100, 'sonic': 200, 'monitor': 300}
+    "sites": {"sto": 1, "ham": 0},
+    "tables": {"analog": 100, "sonic": 200, "monitor": 300},
 }
 
 # for COPYing to dat file
-dat_tablecolumns = {'table': 'dat', 'columns': ('ts', 'chn_id', 'val')}
+dat_tablecolumns = {"table": "dat", "columns": ("ts", "chn_id", "val")}
 
 
 def decode_data_bin(rec, dtl, bl):
@@ -190,38 +273,42 @@ def decode_data_bin(rec, dtl, bl):
     offset = 0  # offset into buffer
     values = []  # list of values to return
     for size, dtype in zip(bl, dtl):
-        fmt = data_type_dict[dtype]['fmt']
+        fmt = data_type_dict[dtype]["fmt"]
         if dtype == "FP2":  # special handling: FP2 floating point number
-            fp2 = struct.unpack(fmt, rec[offset:offset+size])[0]
-            mant = fp2 & 0x1FFF    # mantissa is in bits 1-13
+            fp2 = struct.unpack(fmt, rec[offset : offset + size])[0]
+            mant = fp2 & 0x1FFF  # mantissa is in bits 1-13
             exp = fp2 >> 13 & 0x3  # exponent is in bits 14-15
-            sign = fp2 >> 15       # sign is in bit 16
-            value = (-1)**sign * float(mant) / 10**exp
+            sign = fp2 >> 15  # sign is in bit 16
+            value = (-1) ** sign * float(mant) / 10 ** exp
             if exp == 0:
                 if mant == 8190:  # and sign == 0:
-                    value = float('nan')
+                    value = float("nan")
                 if mant == 8191:
                     if sign == 0:
-                        value = float('inf')
+                        value = float("inf")
                     else:
-                        value = float('-inf')
+                        value = float("-inf")
         elif "ASCII" in dtype:
-            string = rec[offset:offset+size-1]   # the -1 is because the null
+            string = rec[
+                offset : offset + size - 1
+            ]  # the -1 is because the null
             # terminator (\x00) is included in the dimmensioning allocation.
             # ...sometimes hex values come through in the converstion, often
             # "\x00" but sometimes others like "\x05"
             # ...based on a very few (!) observations, if there is one "\x00"
             # value, ignore everything after it within that string's remaining
             # byte allocation.
-            value = string.split('\x00', 1)[0]
+            value = string.split("\x00", 1)[0]
         elif dtype == "SecNano" or dtype == "NSec":
-            ts_list = struct.unpack(fmt, rec[offset:offset+size])
+            ts_list = struct.unpack(fmt, rec[offset : offset + size])
             # ts_list[seconds since CSI epoch, NANOseconds into second]
-            ts = CSI_EPOCH + datetime.timedelta(0, ts_list[0], ts_list[1]/1000)
+            ts = CSI_EPOCH + datetime.timedelta(
+                0, ts_list[0], ts_list[1] / 1000
+            )
             value = ts_formatter(ts)
         else:
             # standard processing for all other data types
-            value = struct.unpack(fmt, rec[offset:offset+size])[0]
+            value = struct.unpack(fmt, rec[offset : offset + size])[0]
             if "BOOL" in dtype:
                 # special processing for Boolean data types.
                 if dtype == "BOOL":
@@ -243,7 +330,7 @@ def decode_data_bin(rec, dtl, bl):
     return values
 
 
-def ts_formatter(ts, ts_format='csi'):
+def ts_formatter(ts, ts_format="csi"):
     """
     Format datetime.dateteim object, with option to match CSI's output.
 
@@ -320,7 +407,7 @@ def footer_parse(footer, validation_int):
     #   validation  = footer[0:16]
     #   flags       = footer[16:20]
     #   offset/size = footer[20:32]
-    footer_bits = "{0:032b}".format(struct.unpack('<I', footer)[0])
+    footer_bits = "{0:032b}".format(struct.unpack("<I", footer)[0])
     logger.debug("footer_bits: %s", footer_bits)
     # validation
     #  the second/last 2-Byte interger, must match (or be the ones compliment)
@@ -360,7 +447,10 @@ def footer_parse(footer, validation_int):
     minor_frame_size = int(footer_bits[20:], base=2)
     logger.debug(
         "V: %s validation_int: %s minor_frame_size: %s",
-        V, validation_int, minor_frame_size)
+        V,
+        validation_int,
+        minor_frame_size,
+    )
     # size includes the minor frame header.
     # This is 0 for a TOB3 Major frame, but if there are minor frames, the
     # major frames footer
@@ -401,15 +491,17 @@ def header_parse(header, ts_resolution):
     # significant byte first"
     # ...assume all are unsigned, and unpack all of them at once.
     # <<<=====  Assume TOB3 format, i.e. 12-Byte header, not 8-Byte of TOB2
-    header_tuple = struct.unpack('<3L', header)
+    header_tuple = struct.unpack("<3L", header)
     # datetime.timedelta(days, seconds, microseconds)
-    ts = CSI_EPOCH + datetime.timedelta(0, header_tuple[0],
-                                        header_tuple[1]*ts_resolution)
+    ts = CSI_EPOCH + datetime.timedelta(
+        0, header_tuple[0], header_tuple[1] * ts_resolution
+    )
     return ts, header_tuple[2]
 
 
-def decode_frameTOB3(head_and_data, fhs, trs, dtl, bl, rfs, rec_interval,
-                     ts_resolution):
+def decode_frameTOB3(
+    head_and_data, fhs, trs, dtl, bl, rfs, rec_interval, ts_resolution
+):
     """
     decode the data in TOB3 binary frame, after header and footer have
     been decoded.
@@ -447,7 +539,7 @@ def decode_frameTOB3(head_and_data, fhs, trs, dtl, bl, rfs, rec_interval,
     Decodes major or minor frame, whichever's data is in theparameter.
     """
     logger = logging.getLogger(__name__)
-    logger.debug('+++ decoding TOB3 frame +++')
+    logger.debug("+++ decoding TOB3 frame +++")
     # --- frame header  ---
     frame_ts, frame_rec = header_parse(head_and_data[:fhs], ts_resolution)
     # --- frame Data ---
@@ -462,18 +554,22 @@ def decode_frameTOB3(head_and_data, fhs, trs, dtl, bl, rfs, rec_interval,
         # 2) format each row using the format string calculated from the header
         # 3) replace 'nan' with '"NAN"'
         # 4) append each formatted data row to records list
-        record_list = decode_data_bin(data[pt:pt+trs], dtl, bl)
+        record_list = decode_data_bin(data[pt : pt + trs], dtl, bl)
         raw_str = rfs.format(*record_list)
-        records_raw.append((raw_str.replace('nan', '"NAN"').
-                            replace('inf', '"INF"').
-                            replace('-inf', '"-INF"')))
+        records_raw.append(
+            (
+                raw_str.replace("nan", '"NAN"')
+                .replace("inf", '"INF"')
+                .replace("-inf", '"-INF"')
+            )
+        )
     # calculate TIMESTAMP & RECORD number for each record and prepend to each
     # formatted data row,
     #   This results in the format how each row will be written to file.
     records = []
     for row in records_raw:
         ts_str = ts_formatter(frame_ts)
-        records.append('"' + ts_str + '",' + str(frame_rec) + ',' + row)
+        records.append('"' + ts_str + '",' + str(frame_rec) + "," + row)
         frame_ts += datetime.timedelta(seconds=rec_interval)
         frame_rec += 1
     # Return a list of strings (formatted data rows)
@@ -512,8 +608,15 @@ def decode_TOB3(ffn, toa5_file):
     rf = open(ffn, "rb")
     for _ in range(6):
         header.append(
-            (rf.readline().decode('ascii', 'ignore').replace('"', "")
-                .replace("\r\n", "").replace("\n", "").split(",")))
+            (
+                rf.readline()
+                .decode("ascii", "ignore")
+                .replace('"', "")
+                .replace("\r\n", "")
+                .replace("\n", "")
+                .split(",")
+            )
+        )
     # extract header information
     #  bl := Byte Length; list of bytes length per measurment for each
     # record.
@@ -527,10 +630,13 @@ def decode_TOB3(ffn, toa5_file):
     # a sector boundary.
     dtypes = [ss.replace(" ", "") for ss in header[5]]
     dtl = [xx.split("(")[0] for xx in dtypes]
-    rfs = ",".join([data_type_dict[xx]['refmt'] for xx in dtl]) + '\n'
-    bl = [int(xx.split("(")[1][:-1])
-          if ('ASCII' in xx) else data_type_dict[xx]['size']
-          for xx in dtypes]
+    rfs = ",".join([data_type_dict[xx]["refmt"] for xx in dtl]) + "\n"
+    bl = [
+        int(xx.split("(")[1][:-1])
+        if ("ASCII" in xx)
+        else data_type_dict[xx]["size"]
+        for xx in dtypes
+    ]
     trs = sum(bl)
     # -- look-up header & footer size --
     # fs := data Frame Size
@@ -541,11 +647,11 @@ def decode_TOB3(ffn, toa5_file):
     # fhs := frame header size
     # ffs := frame footer size
     # check file's format
-    if header[0][0] != 'TOB3':
+    if header[0][0] != "TOB3":
         logger.critical("File (%s) is not TOB3 type!", ffn)
         email_exit()
-    fhs = FILE_TYPE_DICT['TOB3']['fhs']
-    ffs = FILE_TYPE_DICT['TOB3']['ffs']
+    fhs = FILE_TYPE_DICT["TOB3"]["fhs"]
+    ffs = FILE_TYPE_DICT["TOB3"]["ffs"]
 
     # interval := non-timestamped record interval; for intra-frame
     # timestamps; in seconds
@@ -562,7 +668,7 @@ def decode_TOB3(ffn, toa5_file):
     ho = [header[xx] for xx in [0, 2, 3, 4]]
     ho[0][0] = "TOA5"
     ho[0][-1] = header[1][0]
-    ho[0].append(fn)        # add origional file name to header.
+    ho[0].append(fn)  # add origional file name to header.
     ho[1] = ["TIMESTAMP", "RECORD"] + ho[1]
     ho[2] = ["TS", "RN"] + ho[2]
     ho[3] = ["", ""] + ho[3]
@@ -579,11 +685,20 @@ def decode_TOB3(ffn, toa5_file):
     while len(frame) == fs:
         # read frame footer
         (valid_frame, F, R, E, M, minor_frame_size) = footer_parse(
-            frame[-ffs:], validation_int)
+            frame[-ffs:], validation_int
+        )
         logger.debug(
             "MajorFrame: %s len(frame): %s fs: %s valid_frame: %s "
             "F: %s R: %s E: %s M: %s",
-            major_cnt, len(frame), fs, valid_frame, F, R, E, M)
+            major_cnt,
+            len(frame),
+            fs,
+            valid_frame,
+            F,
+            R,
+            E,
+            M,
+        )
         major_cnt += 1  # used only for above
         if valid_frame:
             valid_frame_cnt += 1
@@ -591,11 +706,18 @@ def decode_TOB3(ffn, toa5_file):
             # be written to out file, after processing
             # each Major frame.
             records = []
-            if not(E == 1 or M == 1):
+            if not (E == 1 or M == 1):
                 # standard Major Frame processing
                 records = decode_frameTOB3(
-                    frame[:-ffs], fhs, trs, dtl, bl, rfs, interval,
-                    ts_resolution)
+                    frame[:-ffs],
+                    fhs,
+                    trs,
+                    dtl,
+                    bl,
+                    rfs,
+                    interval,
+                    ts_resolution,
+                )
             else:
                 subframe_cnt = 0  # ### for debug only ####
                 skip_sub_frame, cnt_sub_frame = 0, 0  # debugging only
@@ -617,8 +739,8 @@ def decode_TOB3(ffn, toa5_file):
                 # byte count from the front of the file.
                 subframe_end_ptr = fs
                 sub_frame = frame[
-                    (subframe_end_ptr - minor_frame_size):
-                        subframe_end_ptr]
+                    (subframe_end_ptr - minor_frame_size) : subframe_end_ptr
+                ]
                 while True:
                     # sub-frame at a Major frame boundary may be listed
                     # as empty, but the other sub-frames may have data
@@ -628,9 +750,16 @@ def decode_TOB3(ffn, toa5_file):
                         # (i.e. minor frames).
                         records.append(
                             decode_frameTOB3(
-                                sub_frame[:-ffs], fhs, trs, dtl,
-                                bl, rfs, interval,
-                                ts_resolution))
+                                sub_frame[:-ffs],
+                                fhs,
+                                trs,
+                                dtl,
+                                bl,
+                                rfs,
+                                interval,
+                                ts_resolution,
+                            )
+                        )
                     # identify location of next sub-frame
                     subframe_offset += minor_frame_size
                     subframe_end_ptr = fs - subframe_offset
@@ -642,7 +771,7 @@ def decode_TOB3(ffn, toa5_file):
                         skip_sub_frame = 0
                         cnt_sub_frame = -1
                     cnt_sub_frame += 1  # used for skip subframes
-                    subframe_cnt += 1   # only used for debugging
+                    subframe_cnt += 1  # only used for debugging
                     if subframe_offset >= fs:
                         # the total lenght of sub-frames has exhausted
                         # the length of the Major frame
@@ -656,14 +785,16 @@ def decode_TOB3(ffn, toa5_file):
                         # frame's footer
                         break
                     # read next subframe' footer
-                    (valid_frame, F, R, E, M, minor_frame_size
-                     ) = footer_parse(
-                         frame[-(subframe_offset+ffs):-subframe_offset],
-                         validation_int)
+                    (valid_frame, F, R, E, M, minor_frame_size) = footer_parse(
+                        frame[-(subframe_offset + ffs) : -subframe_offset],
+                        validation_int,
+                    )
                     # read next subframe
-                    sub_frame = (
-                        frame[(subframe_end_ptr - minor_frame_size):
-                              subframe_end_ptr])
+                    sub_frame = frame[
+                        (
+                            subframe_end_ptr - minor_frame_size
+                        ) : subframe_end_ptr
+                    ]
             # record list of valid frame has been assembled.
             # check if sub-frames exist; if yes, reorder sub-frames,
             # and prepare for writing
@@ -684,8 +815,12 @@ def decode_TOB3(ffn, toa5_file):
             if not_valid_frame_cnt > 5:
                 # ### 5 is arbitrary, because
                 # after 1 it is probably done.
-                logger.info(("breaking out of major frame parse loop, "
-                             "becaue not_valid_frame_cnt > 5"))
+                logger.info(
+                    (
+                        "breaking out of major frame parse loop, "
+                        "becaue not_valid_frame_cnt > 5"
+                    )
+                )
                 break
         # move to next MAJOR frame
         frame = rf.read(fs)
@@ -727,8 +862,14 @@ def decode_TOB1(ffn, toa5_file):
         # read the 5 header lines into variable and then parse it.
         for _ in range(5):
             header.append(
-                (rf.readline().decode('ascii', 'ignore').replace('"', "")
-                 .replace("\r\n", "").replace("\n", "").split(","))
+                (
+                    rf.readline()
+                    .decode("ascii", "ignore")
+                    .replace('"', "")
+                    .replace("\r\n", "")
+                    .replace("\n", "")
+                    .split(",")
+                )
             )
         # extract header information
         #  bl := Byte Length; list of bytes length per measurment for each
@@ -740,13 +881,20 @@ def decode_TOB1(ffn, toa5_file):
         # trs := Table Record Size; number of Bytes per record
         dtypes = header[4]
         dtl = [xx.split("(")[0] for xx in dtypes]
-        rfs = ",".join([data_type_dict[xx]['refmt'] for xx in dtl]) + '\n'
-        bl = [int(xx.split("(")[1][:-1])
-              if ('ASCII' in xx) else data_type_dict[xx]['size']
-              for xx in dtypes]
+        rfs = ",".join([data_type_dict[xx]["refmt"] for xx in dtl]) + "\n"
+        bl = [
+            int(xx.split("(")[1][:-1])
+            if ("ASCII" in xx)
+            else data_type_dict[xx]["size"]
+            for xx in dtypes
+        ]
         trs = sum(bl)
-        if (header[1][0] == "SECONDS" and header[1][1] == "NANOSECONDS" and
-                dtypes[0] == "ULONG" and dtypes[1] == "ULONG"):
+        if (
+            header[1][0] == "SECONDS"
+            and header[1][1] == "NANOSECONDS"
+            and dtypes[0] == "ULONG"
+            and dtypes[1] == "ULONG"
+        ):
             # assume the record's first value is TIMESTAMP
             TIMESTAMP = True
             rfs = '"{}",' + rfs.split(",", 2)[-1]
@@ -763,7 +911,7 @@ def decode_TOB1(ffn, toa5_file):
         else:
             ho = header[:4]
             ho[0][0] = "TOA5"
-        ho[0].append(fn)        # add origional file name to header.
+        ho[0].append(fn)  # add origional file name to header.
         # write output
         with open(toa5_file, "w") as outfile:
             for hh in ho:
@@ -779,10 +927,11 @@ def decode_TOB1(ffn, toa5_file):
                     # convert to timestamp
                     ts_list = values[:2]
                     values = values[2:]
-                    ts = CSI_EPOCH + datetime.timedelta(0, ts_list[0],
-                                                        ts_list[1]/1000)
+                    ts = CSI_EPOCH + datetime.timedelta(
+                        0, ts_list[0], ts_list[1] / 1000
+                    )
                     values.insert(0, ts_formatter(ts))
-                values = ['"NAN"' if xx == 'nan' else xx for xx in values]
+                values = ['"NAN"' if xx == "nan" else xx for xx in values]
                 outfile.write(rfs.format(*values))
                 rec = rf.read(trs)
                 rec_cnt += 1
@@ -811,13 +960,13 @@ def b38(xx):
     """
     logger = logging.getLogger(__name__)
     value = ord(xx)
-    if value == 45:     # - (dash)
+    if value == 45:  # - (dash)
         yy = 36
-    elif value < 58:    # [0-9]
+    elif value < 58:  # [0-9]
         yy = value - 48
-    elif value > 96:    # [a-z]
+    elif value > 96:  # [a-z]
         yy = value - 87
-    elif value == 95:   # _ (underscore)
+    elif value == 95:  # _ (underscore)
         yy = 37
     else:
         logger.error("character is not in custom Base 38 encoding.  Abort!")
@@ -860,17 +1009,27 @@ def decode_filename(fn, dirpath):
     """
     logger = logging.getLogger(__name__)
     decode = [b38(xx) for xx in fn[4:9]]
-    yyyy = str(decode[0]+2000)
+    yyyy = str(decode[0] + 2000)
     mm = "{:02}".format(decode[1])
     dd = "{:02}".format(decode[2])
-    hhtt = "{:02}{:02}".format(*divmod(decode[3]*38+decode[4], 60))
-    valid = datetime.datetime.strptime("%s%s%s%s" % (yyyy, mm, dd, hhtt),
-                                       "%Y%m%d%H%M")
+    hhtt = "{:02}{:02}".format(*divmod(decode[3] * 38 + decode[4], 60))
+    valid = datetime.datetime.strptime(
+        "%s%s%s%s" % (yyyy, mm, dd, hhtt), "%Y%m%d%H%M"
+    )
     valid = valid.replace(tzinfo=pytz.utc)
     filepath = os.path.join(dirpath, yyyy, mm, dd)
     chkmkdir(filepath)
-    newfn = (fn[:3] + '_' + table_code[fn[3]] + '_' +
-             yyyy[2:]+mm+dd + '-' + hhtt)
+    newfn = (
+        fn[:3]
+        + "_"
+        + table_code[fn[3]]
+        + "_"
+        + yyyy[2:]
+        + mm
+        + dd
+        + "-"
+        + hhtt
+    )
     newffn = os.path.join(filepath, newfn)
     logger.info("filename decoded: %s = %s", fn, newfn)
     return newffn, valid
@@ -907,14 +1066,14 @@ def directory_traverse(dirpath, dates):
     logger.info("starting parsed directory traverse")
 
     def datenum1(date):
-        '''integer representing YYYYMMDD from datetime.date object'''
-        return date.year*10000 + date.month*100 + date.day
+        """integer representing YYYYMMDD from datetime.date object"""
+        return date.year * 10000 + date.month * 100 + date.day
 
     def datenum2(dir_rel):
-        '''integer representing YYYYMMDD from "YYYY/MM/DD" formatted string'''
+        """integer representing YYYYMMDD from "YYYY/MM/DD" formatted string"""
         xx = os.path.split(dir_rel)
         yy = os.path.split(xx[0])
-        return int(yy[0])*10000 + int(yy[1])*100 + int(xx[1])
+        return int(yy[0]) * 10000 + int(yy[1]) * 100 + int(xx[1])
 
     date_start = datenum1(dates[0])
     date_end = datenum1(dates[1])
@@ -925,11 +1084,15 @@ def directory_traverse(dirpath, dates):
         if top.count(os.sep) - startinglevel == 3:
             dir_list.append(os.path.relpath(top, dirpath))
     dir_list.sort()
-    dir_list_filtered = [xx for xx in dir_list
-                         if (datenum2(xx) >= date_start and
-                             datenum2(xx) <= date_end)]
-    logger.info(("number of directories to Reimport via SQL = %s"
-                 ), len(dir_list_filtered))
+    dir_list_filtered = [
+        xx
+        for xx in dir_list
+        if (datenum2(xx) >= date_start and datenum2(xx) <= date_end)
+    ]
+    logger.info(
+        ("number of directories to Reimport via SQL = %s"),
+        len(dir_list_filtered),
+    )
     logger.debug("directories to import:\n%s", dir_list_filtered)
     return dir_list_filtered
 
@@ -948,16 +1111,15 @@ def chkmkdir(dirpath):
     os module should work on Windows and Linux
     """
     logger = logging.getLogger(__name__)
-    if dirpath[-1] != '/':
-        dirpath = dirpath + '/'
+    if dirpath[-1] != "/":
+        dirpath = dirpath + "/"
     newdir = os.path.dirname(dirpath)
     if not os.path.exists(newdir):
         os.makedirs(newdir)
         logger.info("dirpath made to: %s", newdir)
 
 
-def email_error(body, tail_error_log=True,
-                ffn_error=logger_config.ffn_error):
+def email_error(body, tail_error_log=True, ffn_error=logger_config.ffn_error):
     """
     send email to joesmith@iastate.edu regarding specific fault for specified
     filename.
@@ -979,21 +1141,22 @@ def email_error(body, tail_error_log=True,
     Email may compress multiple spaces in formatted "fn" into one tab.
     """
     logger = logging.getLogger(__name__)
-    toaddr = ",".join(CONFIG['email']['to'])
-    fromaddr = CONFIG['email']['from']
+    toaddr = ",".join(CONFIG["email"]["to"])
+    fromaddr = CONFIG["email"]["from"]
     msg = MIMEMultipart()
-    msg['From'] = fromaddr
-    msg['To'] = toaddr
-    msg['Subject'] = "Talltowers - FAILURE"
+    msg["From"] = fromaddr
+    msg["To"] = toaddr
+    msg["Subject"] = "Talltowers - FAILURE"
 
     if tail_error_log:
-        body = body + "\n\n" + subprocess.check_output(['tail', '-10',
-                                                        ffn_error])
-    msg.attach(MIMEText(body, 'plain'))
+        body = (
+            body + "\n\n" + subprocess.check_output(["tail", "-10", ffn_error])
+        )
+    msg.attach(MIMEText(body, "plain"))
 
-    logger.info('Emailing ERROR to: %s', toaddr)
+    logger.info("Emailing ERROR to: %s", toaddr)
 
-    server = smtplib.SMTP(CONFIG['email']['server'])
+    server = smtplib.SMTP(CONFIG["email"]["server"])
     text = msg.as_string()
     server.sendmail(fromaddr, toaddr, text)
     server.quit()
@@ -1005,7 +1168,7 @@ def email_exit(msg=""):
     """
     logger = logging.getLogger(__name__)
     if msg:
-        msg = msg + '\n'
+        msg = msg + "\n"
     email_error(msg + "Fatal error, see error log.")
     logger.critical("ABORTED!\n%s%s%s", "*" * 20, "  END OF LOG  ", "*" * 20)
     sys.exit()
@@ -1034,14 +1197,14 @@ def ftp_del(fn):
     # get file name as it exists on the datalogger
     fn_logger = fn[3:9]
     # identfiy which logger the file comes from
-    cr6 = CONFIG['ftp'][fn[0:3]]
-    if cr6['hostname'] == '...':
+    cr6 = CONFIG["ftp"][fn[0:3]]
+    if cr6["hostname"] == "...":
         logger.info("Skipping ftp_del since hostname is ...")
         return
     # log into dataloggers FTP service, navigate to direcotry, delete file
-    site = ftplib.FTP(cr6['hostname'], cr6['user'], cr6['pass'])
+    site = ftplib.FTP(cr6["hostname"], cr6["user"], cr6["pass"])
     site.set_pasv(False)
-    site.cwd(r'\CRD')
+    site.cwd(r"\CRD")
     site.delete(fn_logger)
 
 
@@ -1074,48 +1237,55 @@ def parse_TOA5_sql(ffn, dirpath=None):
     """
     logger = logging.getLogger(__name__)
     if dirpath is None:
-        dirpath = CONFIG['dataroot']
+        dirpath = CONFIG["dataroot"]
     # setup filenames and
     fn = os.path.basename(ffn)
     logger.info("starting to parse TOA5 file: %s", fn)
     fn_basename = os.path.splitext(fn)[0]
     site, table, _ = fn_basename.split("_")
-    sql_ffn = os.path.join(dirpath, fn_basename+'.sql')
+    sql_ffn = os.path.join(dirpath, fn_basename + ".sql")
     # chn_id encoding
-    site_number = CHN_CODE['sites'][site]
+    site_number = CHN_CODE["sites"][site]
 
-    df = pd.read_csv(ffn, skiprows=[0, 2, 3], header=0,
-                     na_values=['NAN', '-INF', 'INF'])
+    df = pd.read_csv(
+        ffn, skiprows=[0, 2, 3], header=0, na_values=["NAN", "-INF", "INF"]
+    )
     if df.empty:
-        raise Exception("0 data rows found in %s" % (fn, ))
+        raise Exception("0 data rows found in %s" % (fn,))
     # add site
-    df['tower'] = site_number
-    df.drop('RECORD', axis=1, inplace=True)
-    df['valid'] = pd.to_datetime(df['TIMESTAMP'])
-    df.drop('TIMESTAMP', axis=1, inplace=True)
-    if table == 'sonic':
+    df["tower"] = site_number
+    df.drop("RECORD", axis=1, inplace=True)
+    df["valid"] = pd.to_datetime(df["TIMESTAMP"])
+    df.drop("TIMESTAMP", axis=1, inplace=True)
+    if table == "sonic":
         # Convert the diag columns to int
         for m in [5, 10, 20, 40, 80, 120]:
             c = "Diag_%sm" % (m,)
             if df[c].dtype != np.dtype(int):
                 # Hack as pandas can't have an int dtype with missing values
-                df[c] = df[c].apply(lambda x: ('%.0f' % (x,)
-                                               if (pd.notnull(x) and
-                                                   x > -32768 and x < 32767)
-                                               else None))
-    tmin = df['valid'].min()
-    tmax = df['valid'].max()
-    if table != 'monitor':
+                df[c] = df[c].apply(
+                    lambda x: (
+                        "%.0f" % (x,)
+                        if (pd.notnull(x) and x > -32768 and x < 32767)
+                        else None
+                    )
+                )
+    tmin = df["valid"].min()
+    tmax = df["valid"].max()
+    if table != "monitor":
         # data insert below uses a single table, so this situation is not
         # handled properly
         if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
             logger.exception(
                 "TOA5 file: %s has unsupported time domain: %s %s",
-                ffn, tmin, tmax)
+                ffn,
+                tmin,
+                tmax,
+            )
         table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
     else:
         table = "data_monitor"
-    df.to_csv(sql_ffn, sep='\t', header=False, index=False, na_rep=r'\N')
+    df.to_csv(sql_ffn, sep="\t", header=False, index=False, na_rep=r"\N")
     return sql_ffn, table, df.columns
 
 
@@ -1152,25 +1322,28 @@ def copy2db_execute(sql_ffn, db, table, columns, UTC=True):
     logger = logging.getLogger(__name__)
     logger.info("starting COPY to db for %s", os.path.basename(sql_ffn))
     try:
-        conn = psycopg2.connect(('host={hostname} dbname={dbname} '
-                                 'user={dbuser} password={dbpass}'
-                                 ).format(**db))
-        logger.debug('connected to database')
+        conn = psycopg2.connect(
+            (
+                "host={hostname} dbname={dbname} "
+                "user={dbuser} password={dbpass}"
+            ).format(**db)
+        )
+        logger.debug("connected to database")
         curs = conn.cursor()
-        infile = open(sql_ffn, 'r')
-        logger.debug('database cursor established')
+        infile = open(sql_ffn, "r")
+        logger.debug("database cursor established")
         if UTC:
             curs.execute("set timezone='UTC';")
         curs.copy_from(infile, table=table, columns=columns)
         curs.close()
         conn.commit()
         conn.close()
-        logger.debug('copyed to database')
+        logger.debug("copyed to database")
         return "COPY Successful."
         # return None
     except Exception as e:
-        logger.exception('Failed to execute COPY for %s', sql_ffn)
-        return 'Failed to execute COPY for ' + sql_ffn + '; ErrMsg: ' + str(e)
+        logger.exception("Failed to execute COPY for %s", sql_ffn)
+        return "Failed to execute COPY for " + sql_ffn + "; ErrMsg: " + str(e)
 
 
 def arg_parse(argv=None):
@@ -1193,36 +1366,67 @@ def arg_parse(argv=None):
     """
     parser = argparse.ArgumentParser()
     # define arguments:
-    parser.add_argument('--dataroot', type=str, default=CONFIG['dataroot'],
-                        help="[optional] Root for data files to process.")
-    parser.add_argument('--filename', type=str, nargs='+',
-                        help=("[optional] Filename(s) to process.  Default "
-                              "is to process all files in current directory, "
-                              "which match the standard file nameing "
-                              "convention"))
+    parser.add_argument(
+        "--dataroot",
+        type=str,
+        default=CONFIG["dataroot"],
+        help="[optional] Root for data files to process.",
+    )
+    parser.add_argument(
+        "--filename",
+        type=str,
+        nargs="+",
+        help=(
+            "[optional] Filename(s) to process.  Default "
+            "is to process all files in current directory, "
+            "which match the standard file nameing "
+            "convention"
+        ),
+    )
     # parser.add_argument("--timestamp", choices=['millisec','sec','csi'],
     #                     default='csi',
     #                     help="[optional] Format string for timestamps.
     #                           Default is 'csi'")
-    parser.add_argument("--debug", action="store_true",
-                        help=("[optional] Debugging; prints out intermediate "
-                              "steps, especially for TOB3 processing"))
-    parser.add_argument("--database", type=str,
-                        help=("[optional] PostgreSQL database to COPY data "
-                              "to.  Default according to pyenv.dbconn."))
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help=(
+            "[optional] Debugging; prints out intermediate "
+            "steps, especially for TOB3 processing"
+        ),
+    )
+    parser.add_argument(
+        "--database",
+        type=str,
+        help=(
+            "[optional] PostgreSQL database to COPY data "
+            "to.  Default according to pyenv.dbconn."
+        ),
+    )
     # action='append',
-    parser.add_argument('--dates', nargs=2, metavar=('START_DATE', 'END_DATE'),
-                        help=("[optional] Two dates 'YYYY-MM-DD' "
-                              "(separated by space), as inclusive endpoints "
-                              "to RE-Import data to database; but can exceed "
-                              "project data's dates in order to import all.  "
-                              "Data is already in ASCII and standard folder "
-                              "structure."))
-    parser.add_argument("--save", action="store_true",
-                        help=("[optional] retains the file on the Datalogger. "
-                              " Default is to delete the file on the "
-                              "Dataloger, after succesfully COPYing to "
-                              "the database."))
+    parser.add_argument(
+        "--dates",
+        nargs=2,
+        metavar=("START_DATE", "END_DATE"),
+        help=(
+            "[optional] Two dates 'YYYY-MM-DD' "
+            "(separated by space), as inclusive endpoints "
+            "to RE-Import data to database; but can exceed "
+            "project data's dates in order to import all.  "
+            "Data is already in ASCII and standard folder "
+            "structure."
+        ),
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help=(
+            "[optional] retains the file on the Datalogger. "
+            " Default is to delete the file on the "
+            "Dataloger, after succesfully COPYing to "
+            "the database."
+        ),
+    )
     # return
     return parser.parse_args(argv)
 
@@ -1247,23 +1451,28 @@ def arg_check(args):
     if args.filename:
         # because of the "nargs='+'" this args.filename is a list already
         fnames = args.filename
-        checkpath = [os.path.isfile(os.path.join(dirpath, fn))
-                     for fn in fnames]
+        checkpath = [
+            os.path.isfile(os.path.join(dirpath, fn)) for fn in fnames
+        ]
         if False in checkpath:
-            msg = "{}".format([os.path.join(dirpath, fn)
-                               for fn, cp in zip(fnames, checkpath)
-                               if not cp])
+            msg = "{}".format(
+                [
+                    os.path.join(dirpath, fn)
+                    for fn, cp in zip(fnames, checkpath)
+                    if not cp
+                ]
+            )
             logger.error("filename does not exist:\n%s\nABORT!", msg)
             email_exit()
     else:
         fn_pattern = r"^(ham|sto)[SAM]{1}[0-9a-z-_]{5}\.bdat$"
-        fnames = sorted([fn
-                         for fn in os.listdir(dirpath)
-                         if re.match(fn_pattern, fn)])
+        fnames = sorted(
+            [fn for fn in os.listdir(dirpath) if re.match(fn_pattern, fn)]
+        )
     # dbconn
-    dbconn = CONFIG['dbconn']
+    dbconn = CONFIG["dbconn"]
     if args.database:
-        dbconn['dbname'] = args.database
+        dbconn["dbname"] = args.database
     # [debug] ...nothing returned, because it acts directly upon logger
     if args.debug:
         logger.setLevel(logging.DEBUG)
@@ -1271,7 +1480,7 @@ def arg_check(args):
         argdict = args.__dict__
         for key in argdict.keys():
             logstr += "\t{:<15} - {}".format(key, argdict[key]) + "\n"
-        logger.debug('\nOptional Arguments: \n%s', logstr)
+        logger.debug("\nOptional Arguments: \n%s", logstr)
     # save
     delete_datalogger_fn = not args.save
     return dirpath, fnames, dbconn, delete_datalogger_fn
@@ -1283,7 +1492,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
     """
     logger = logging.getLogger(__name__)
     for fn in fnames:
-        logger.info("%s%s%s", "="*10, "{:^20}".format(fn), "="*10)
+        logger.info("%s%s%s", "=" * 10, "{:^20}".format(fn), "=" * 10)
         # set input and output file names
         ffn = os.path.join(dirpath, fn)
         try:
@@ -1291,9 +1500,10 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             toa5_file, valid = decode_filename(fn, dirpath)
             # just check header for file type
             with open(ffn, "rb") as rf:
-                file_type = rf.read(6).decode('ascii', 'ignore')
+                file_type = rf.read(6).decode("ascii", "ignore")
             logger.debug(
-                "file: %s; type: %s; TOA5: %s", fn, file_type, toa5_file)
+                "file: %s; type: %s; TOA5: %s", fn, file_type, toa5_file
+            )
             # call appropriate function
             if file_type == '"TOB1"':
                 rec_cnt = decode_TOB1(ffn, toa5_file)
@@ -1301,47 +1511,55 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
             elif file_type == '"TOB3"':
                 rec_cnt = decode_TOB3(ffn, toa5_file)
                 logger.info(
-                    "file: %s; records written: %s; header expected: %s", fn,
-                    *rec_cnt)
+                    "file: %s; records written: %s; header expected: %s",
+                    fn,
+                    *rec_cnt
+                )
             elif file_type == '"TOB2"':
                 logger.critical('No script to decode "TOB2" file types')
             else:
                 logger.error(" unrecognized file type")
             # rename file, as an atomic action, after file writing is complete
-            os.rename(toa5_file, toa5_file + '.dat')
+            os.rename(toa5_file, toa5_file + ".dat")
             # ------------------------------------------------------------------------
             # parse resultant TOA5 file to SQL file
-            sql_ffn, table, columns = parse_TOA5_sql(toa5_file + '.dat')
+            sql_ffn, table, columns = parse_TOA5_sql(toa5_file + ".dat")
             # copy SQL file to database
             result = copy2db_execute(sql_ffn, dbconn, table, columns)
 
             logger.info(result)
             if result == "COPY Successful.":
                 # Copy the .bdat file to consumed/YYYY/mm/dd/
-                restingplace = "%s/%s" % (consumed_dir,
-                                          valid.strftime("%Y/%m/%d"))
+                restingplace = "%s/%s" % (
+                    consumed_dir,
+                    valid.strftime("%Y/%m/%d"),
+                )
                 chkmkdir(restingplace)
-                restingfn = "%s/%s_%s" % (restingplace,
-                                          valid.strftime("%Y%m%d%H%M"), fn)
+                restingfn = "%s/%s_%s" % (
+                    restingplace,
+                    valid.strftime("%Y%m%d%H%M"),
+                    fn,
+                )
                 logger.debug("moving %s to %s", fn, restingfn)
                 os.rename(ffn, restingfn)
                 logger.debug("deleteing SQL formated file: %s", sql_ffn)
                 os.remove(sql_ffn)
                 logger.info(
-                    "deleteing DataLogger file associated with: %s", fn)
+                    "deleteing DataLogger file associated with: %s", fn
+                )
                 ftp_del(fn)
             else:
                 logger.info(
-                    "deleteing DataLogger file associated with: %s", fn)
+                    "deleteing DataLogger file associated with: %s", fn
+                )
                 ftp_del(fn)
                 raise Exception("DBCopy failed")
         except Exception as exp:
             logger.debug(exp)
-            quarentine_path = os.path.join(dirpath, 'quarentine')
+            quarentine_path = os.path.join(dirpath, "quarentine")
             chkmkdir(quarentine_path)
-            func = logger.exception if fn[3] != 'M' else logger.warn
-            func(
-                "%s FAILED. Moved to '%s'", fn, quarentine_path)
+            func = logger.exception if fn[3] != "M" else logger.warn
+            func("%s FAILED. Moved to '%s'", fn, quarentine_path)
             # move file
             try:
                 os.rename(ffn, os.path.join(quarentine_path, fn))
@@ -1361,7 +1579,7 @@ def main(argv):
     (dirpath, fnames, dbconn, delete_datalogger_fn) = arg_check(args)
 
     # set consumed directory
-    consumed_dir = os.path.join(dirpath, 'consumed')
+    consumed_dir = os.path.join(dirpath, "consumed")
     chkmkdir(consumed_dir)
     # CSI binary
     bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn)

@@ -6,16 +6,18 @@ def main():
     """Go Main Go."""
     now = datetime.datetime(2017, 1, 1)
     ets = datetime.datetime(2018, 1, 1)
-    print('BEGIN;')
+    print("BEGIN;")
     while now < ets:
         now = now.replace(day=1)
         nextmonth = (now + datetime.timedelta(days=32)).replace(day=1)
         d = {
-            'd': now.strftime("%Y%m"),
-            'this': now.strftime("%Y-%m-%d"),
-            'next': nextmonth.strftime("%Y-%m-%d")
+            "d": now.strftime("%Y%m"),
+            "this": now.strftime("%Y-%m-%d"),
+            "next": nextmonth.strftime("%Y-%m-%d"),
         }
-        print(("""
+        print(
+            (
+                """
     --
     CREATE TABLE data_sonic_%(d)s(
     CONSTRAINT __data_sonic_%(d)s_check
@@ -35,10 +37,13 @@ def main():
     CREATE INDEX data_analog_%(d)s_idx on data_analog_%(d)s(tower, valid);
     GRANT ALL on data_analog_%(d)s to tt_script,tt_admin;
     GRANT SELECT on data_analog_%(d)s to tt_web;
-    """) % d)
+    """
+            )
+            % d
+        )
         now = nextmonth
-    print('COMMIT;')
+    print("COMMIT;")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

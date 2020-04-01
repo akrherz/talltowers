@@ -1,9 +1,11 @@
 import datetime
 import psycopg2
 
-pgconn = psycopg2.connect(database='talltowers',
-                          host='talltowers-db.agron.iastate.edu',
-                          user='tt_web')
+pgconn = psycopg2.connect(
+    database="talltowers",
+    host="talltowers-db.agron.iastate.edu",
+    user="tt_web",
+)
 cursor = pgconn.cursor()
 
 schema = """ tower           | smallint                 | 
@@ -62,21 +64,28 @@ for tower in range(2):
     ets = datetime.date(2016, 9, 14)
     interval = datetime.timedelta(days=1)
     now = sts
-    o = open("analog%s.txt" % (tower,), 'wb')
+    o = open("analog%s.txt" % (tower,), "wb")
     o.write(",".join(cols) + "\n")
     while now < ets:
         print now
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT tower,
             date_trunc('minute',
                 valid at time zone 'America/Chicago') as localvalid,
-            """ + sql + """
+            """
+            + sql
+            + """
             from data_analog WHERE tower = %s and
             valid between '%s 06:00+00' and '%s 06:00+00'
             GROUP by tower, localvalid
-            ORDER by localvalid""" % (tower, now.strftime("%Y-%m-%d"),
-                                      (now + interval).strftime("%Y-%m-%d")
-                                      ))
+            ORDER by localvalid"""
+            % (
+                tower,
+                now.strftime("%Y-%m-%d"),
+                (now + interval).strftime("%Y-%m-%d"),
+            )
+        )
         for row in cursor:
             o.write(",".join([str(s) for s in row]) + "\n")
         now += interval
