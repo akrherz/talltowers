@@ -1542,6 +1542,8 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                 )
                 ftp_del(fn)
                 raise Exception("DBCopy failed")
+        except ftplib.error_perm as exp:
+            logger.debug(exp)
         except Exception as exp:
             logger.debug(exp)
             quarentine_path = os.path.join(dirpath, "quarentine")
