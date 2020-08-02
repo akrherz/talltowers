@@ -5,6 +5,7 @@ See `README.md` for more details on this code
 @date: Feb 2016
 @author: joesmith@iastate.edu
 """
+# pylint: disable=too-many-lines
 
 import argparse  # use command line arguments
 import os  # os.path.join()  &  os.listdir()
@@ -1270,21 +1271,8 @@ def parse_TOA5_sql(ffn, dirpath=None):
                         else None
                     )
                 )
-    tmin = df["valid"].min()
-    tmax = df["valid"].max()
-    if table != "monitor":
-        # data insert below uses a single table, so this situation is not
-        # handled properly
-        if tmin.strftime("%Y%m") != tmax.strftime("%Y%m"):
-            logger.exception(
-                "TOA5 file: %s has unsupported time domain: %s %s",
-                ffn,
-                tmin,
-                tmax,
-            )
-        table = "data_%s_%s" % (table, tmin.strftime("%Y%m"))
-    else:
-        table = "data_monitor"
+    # Database uses partitioned tables, so can insert directly into parent
+    table = f"data_{table}"
     df.to_csv(sql_ffn, sep="\t", header=False, index=False, na_rep=r"\N")
     return sql_ffn, table, df.columns
 
@@ -1513,7 +1501,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
                 logger.info(
                     "file: %s; records written: %s; header expected: %s",
                     fn,
-                    *rec_cnt
+                    *rec_cnt,
                 )
             elif file_type == '"TOB2"':
                 logger.critical('No script to decode "TOB2" file types')
