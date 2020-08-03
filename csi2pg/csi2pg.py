@@ -1469,12 +1469,10 @@ def arg_check(args):
         for key in argdict.keys():
             logstr += "\t{:<15} - {}".format(key, argdict[key]) + "\n"
         logger.debug("\nOptional Arguments: \n%s", logstr)
-    # save
-    delete_datalogger_fn = not args.save
-    return dirpath, fnames, dbconn, delete_datalogger_fn
+    return dirpath, fnames, dbconn
 
 
-def bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn):
+def bin2pg(dirpath, fnames, consumed_dir, dbconn):
     """
     Convert Binary CSI file and Copy to postgres.
     """
@@ -1566,13 +1564,13 @@ def main(argv):
     # parse the args, from Command Line
     args = arg_parse(argv)
     # check the args
-    (dirpath, fnames, dbconn, delete_datalogger_fn) = arg_check(args)
+    (dirpath, fnames, dbconn) = arg_check(args)
 
     # set consumed directory
     consumed_dir = os.path.join(dirpath, "consumed")
     chkmkdir(consumed_dir)
     # CSI binary
-    bin2pg(dirpath, fnames, consumed_dir, dbconn, delete_datalogger_fn)
+    bin2pg(dirpath, fnames, consumed_dir, dbconn)
 
 
 if __name__ == "__main__":
