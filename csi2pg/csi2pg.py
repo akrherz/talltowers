@@ -11,10 +11,10 @@ import argparse  # use command line arguments
 import os  # os.path.join()  &  os.listdir()
 import datetime  # datetime & timedelta
 import sys  # sys.exit() & email (tail -5) & sys.path.append
-import re  # re.match()
 import struct  # unpacking binary
 import ftplib  # deleting file from datalogger
 import json
+import re
 
 # email
 import smtplib
@@ -1419,6 +1419,11 @@ def arg_parse(argv=None):
     return parser.parse_args(argv)
 
 
+def glob_re(pattern, strings):
+    """Apply RE for glob."""
+    return filter(re.compile(pattern).match, strings)
+
+
 def arg_check(args):
     """
     check the arguments for validtity and set other variables as necessicary.
@@ -1453,10 +1458,15 @@ def arg_check(args):
             logger.error("filename does not exist:\n%s\nABORT!", msg)
             email_exit()
     else:
-        fn_pattern = r"^(ham|sto)[SAM]{1}[0-9a-z-_]{5}\.bdat$"
-        fnames = sorted(
-            [fn for fn in os.listdir(dirpath) if re.match(fn_pattern, fn)]
-        )
+        fnames = []
+        for fn in glob_re(
+            r"^(ham|sto)[SAM]{1}[0-9a-z-_]{5}\.bdat$", os.listdir(dirpath)
+        ):
+            # Move file to a new name to prevent races
+            os.rename(
+                os.path.join(dirpath, fn), os.path.join(dirpath, f"{fn}.lock")
+            )
+            fnames.append(fn)
     # dbconn
     dbconn = CONFIG["dbconn"]
     if args.database:
@@ -1480,7 +1490,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn):
     for fn in fnames:
         logger.info("%s%s%s", "=" * 10, "{:^20}".format(fn), "=" * 10)
         # set input and output file names
-        ffn = os.path.join(dirpath, fn)
+        ffn = os.path.join(dirpath, fn) + ".lock"
         try:
             # decode filename and create output full-filename
             toa5_file, valid = decode_filename(fn, dirpath)
