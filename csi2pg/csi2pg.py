@@ -986,8 +986,6 @@ def decode_filename(fn, dirpath):
     dirpath: string
         directory path to root of storage, in which directories
             of year/month/day will be built and data stored.
-    table_code: dictionary [optional]
-        decode table characters to table names
 
     Returns
     -------
@@ -1514,16 +1512,19 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn):
             elif file_type == '"TOB2"':
                 logger.critical('No script to decode "TOB2" file types')
             else:
-                logger.error(" unrecognized file type")
-            # rename file, as an atomic action, after file writing is complete
-            os.rename(toa5_file, toa5_file + ".dat")
-            # ------------------------------------------------------------------------
-            # parse resultant TOA5 file to SQL file
-            sql_ffn, table, columns = parse_TOA5_sql(toa5_file + ".dat")
-            # copy SQL file to database
-            result = copy2db_execute(sql_ffn, dbconn, table, columns)
+                logger.error(" unrecognized file type '%s'", file_type)
 
-            logger.info(result)
+            result = ""
+            if os.path.isfile(toa5_file):
+                # rename file, as an atomic action,
+                # after file writing is complete
+                os.rename(toa5_file, toa5_file + ".dat")
+
+                # parse resultant TOA5 file to SQL file
+                sql_ffn, table, columns = parse_TOA5_sql(toa5_file + ".dat")
+                # copy SQL file to database
+                result = copy2db_execute(sql_ffn, dbconn, table, columns)
+                logger.info(result)
             if result == "COPY Successful.":
                 # Copy the .bdat file to consumed/YYYY/mm/dd/
                 restingplace = "%s/%s" % (
