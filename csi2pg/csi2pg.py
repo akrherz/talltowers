@@ -1201,7 +1201,7 @@ def ftp_del(fn):
         logger.info("Skipping ftp_del since hostname is ...")
         return
     # log into dataloggers FTP service, navigate to direcotry, delete file
-    site = ftplib.FTP(cr6["hostname"], cr6["user"], cr6["pass"])
+    site = ftplib.FTP(cr6["hostname"], cr6["user"], cr6["pass"], timeout=30)
     site.set_pasv(False)
     site.cwd(r"\CRD")
     site.delete(fn_logger)
