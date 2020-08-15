@@ -1541,15 +1541,7 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn):
                 os.rename(ffn, restingfn)
                 logger.debug("deleteing SQL formated file: %s", sql_ffn)
                 os.remove(sql_ffn)
-                logger.info(
-                    "deleteing DataLogger file associated with: %s", fn
-                )
-                ftp_del(fn)
             else:
-                logger.info(
-                    "deleteing DataLogger file associated with: %s", fn
-                )
-                ftp_del(fn)
                 raise Exception("DBCopy failed")
         except ftplib.error_perm as exp:
             logger.debug(exp)
@@ -1564,6 +1556,12 @@ def bin2pg(dirpath, fnames, consumed_dir, dbconn):
                 os.rename(ffn, os.path.join(quarentine_path, fn))
             except Exception:
                 pass
+        finally:
+            try:
+                ftp_del(fn)
+            except Exception as exp:
+                logger.debug(exp)
+                logger.warning(exp)
 
 
 def main(argv):
