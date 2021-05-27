@@ -11,7 +11,7 @@ import os
 import sys
 import datetime
 import json
-from ftplib import FTP
+from ftplib import FTP_TLS
 
 import pandas as pd
 import pytz
@@ -170,8 +170,9 @@ def download_files(valid, offset):
         if os.path.isfile(localfn):
             continue
         if conn is None:
-            conn = FTP(settings["host"])
+            conn = FTP_TLS(settings["host"])
             conn.login(settings["username"], settings["password"])
+            conn.prot_p()
         fp = open(localfn, "wb")
         try:
             conn.retrbinary("RETR %s" % (remotefn,), fp.write)
