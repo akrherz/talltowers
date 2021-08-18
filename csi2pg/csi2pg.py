@@ -1320,7 +1320,11 @@ def copy2db_execute(sql_ffn, db, table, columns, UTC=True):
         logger.debug("database cursor established")
         if UTC:
             curs.execute("set timezone='UTC';")
-        curs.copy_from(infile, table=table, columns=columns)
+        curs.copy_from(
+            infile,
+            table=table,
+            columns=[c.lower() for c in columns],
+        )
         curs.close()
         conn.commit()
         conn.close()
