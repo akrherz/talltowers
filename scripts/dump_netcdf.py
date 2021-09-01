@@ -60,7 +60,7 @@ def create_netcdf(valid):
     elev[0] = nt["ETTI4"]["elevation"]
     elev[1] = nt["MCAI4"]["elevation"]
 
-    bt = nc.createVariable("base_time", np.int, ("number",))
+    bt = nc.createVariable("base_time", int, ("number",))
     bt.units = "seconds since 1970-01-01 00:00:00.000"
     bt[0] = (valid - DT1970).total_seconds()
 

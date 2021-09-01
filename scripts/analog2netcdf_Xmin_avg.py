@@ -106,7 +106,7 @@ def create_netcdf(valid, window):
     elev[0] = nt["ETTI4"]["elevation"]
     elev[1] = nt["MCAI4"]["elevation"]
 
-    bt = nc.createVariable("base_time", np.int, ("number",))
+    bt = nc.createVariable("base_time", int, ("number",))
     bt.units = "seconds since 1970-01-01 00:00:00.000"
     bt[0] = (valid - DT1970).total_seconds()
 
@@ -184,7 +184,8 @@ def write_analog_data(valid, nc, window):
             "stddev(%(v)s) as %(v)s_standard_deviation,\n"
             "median(abs(%(v)s - "
             "%(v)s_median)::numeric) as %(v)s_median_abs_deviation,\n"
-            "sum(case when %(v)s is not null then 1 else 0 end) as %(v)s_count\n"
+            "sum(case when %(v)s is not null then 1 else 0 end) "
+            "as %(v)s_count\n"
         )
         % dict(v=xlate(v))
         for v in ANALOG_VARS
