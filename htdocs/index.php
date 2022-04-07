@@ -54,7 +54,8 @@ Daryl Herzmann (akrherz@iastate.edu)</p>
 <p><a name="sodar">Sodar Data</a></p>
 
 <ul>
-    <li>IEM 10-minute data download tool: here [Link #4]</li>
+    <li>IEM 10-minute data download tool:
+        <a href="https://mesonet.agron.iastate.edu/projects/iao/sodar_download.php">Link</a></li>
     <li>Description of instrument operation and metadata: here [Link #7]</li>
 </ul>
 
@@ -62,7 +63,9 @@ Daryl Herzmann (akrherz@iastate.edu)</p>
 <p><a name="surface">Surface met station Data</a></p>
 
 <ul>
-<li>IEM 10-minute data download tool: here [Link #5]</li>
+<li>IEM 10-minute data download tool:
+<a href="https://mesonet.agron.iastate.edu/projects/iao/surface_download.php">Link</a>
+</li>
 <li>Surface met station metadata: here [Link #8]</li>
 </ul>
 
