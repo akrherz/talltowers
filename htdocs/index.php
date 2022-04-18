@@ -48,7 +48,7 @@ Daryl Herzmann (akrherz@iastate.edu)</p>
     <li>IEM 1-min analog data download tool for 1-minute to 1-hour statistics:
         <a href="https://mesonet.agron.iastate.edu/projects/iao/analog_download.php">Link</a></li>
     <li>Tall tower metadata (tower servicing, instrumentation, and field condition logs):
-        Link #6.</li>
+        <a href="https://iastate.box.com/s/zdw2f5jexmucjcrvttj99wagf0ixekbc">Link</a></li>
 </ul>
 
 <p><a name="sodar">Sodar Data</a></p>
@@ -56,7 +56,7 @@ Daryl Herzmann (akrherz@iastate.edu)</p>
 <ul>
     <li>IEM 10-minute data download tool:
         <a href="https://mesonet.agron.iastate.edu/projects/iao/sodar_download.php">Link</a></li>
-    <li>Description of instrument operation and metadata: here [Link #7]</li>
+    <li>Description of instrument operation and metadata: <a href="https://iastate.box.com/s/qw6jxa3oj7a6v48b31z7tm1fhkenfiql">Link</a></li>
 </ul>
 
 
