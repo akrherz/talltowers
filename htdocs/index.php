@@ -66,7 +66,8 @@ Daryl Herzmann (akrherz@iastate.edu)</p>
 <li>IEM 10-minute data download tool:
 <a href="https://mesonet.agron.iastate.edu/projects/iao/surface_download.php">Link</a>
 </li>
-<li>Surface met station metadata: here [Link #8]</li>
+<li>Surface met station metadata: <a href="https://iastate.box.com/s/yoy797hh4v8wozkj4g73mnyscxsld1j2">Link</a>
+</li>
 </ul>
 
 </body>
