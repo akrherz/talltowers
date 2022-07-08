@@ -280,7 +280,7 @@ def decode_data_bin(rec, dtl, bl):
             mant = fp2 & 0x1FFF  # mantissa is in bits 1-13
             exp = fp2 >> 13 & 0x3  # exponent is in bits 14-15
             sign = fp2 >> 15  # sign is in bit 16
-            value = (-1) ** sign * float(mant) / 10 ** exp
+            value = (-1) ** sign * float(mant) / 10**exp
             if exp == 0:
                 if mant == 8190:  # and sign == 0:
                     value = float("nan")

@@ -67,7 +67,7 @@ for tower in range(2):
     o = open("analog%s.txt" % (tower,), "wb")
     o.write(",".join(cols) + "\n")
     while now < ets:
-        print now
+        print(now)
         cursor.execute(
             """
             SELECT tower,

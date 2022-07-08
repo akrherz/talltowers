@@ -35,12 +35,12 @@ df = read_sql(
     pgconn,
     index_col="ts",
 )
-print len(df.index)
+print(len(df.index))
 x = []
 y = []
 z = []
 ts0 = df.index[0]
-print ts0
+print(ts0)
 for i, row in df.iterrows():
     for level in [5, 10, 20, 40, 80, 120]:
         x.append((i - ts0).total_seconds())
