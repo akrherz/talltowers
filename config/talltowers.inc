@@ -13,8 +13,8 @@
   </Directory>
 
     # Raw netcdf files
-    Alias "/netcdf" "/mnt/mtarchive/talltowers"
-    <Directory "/mnt/mtarchive/talltowers">
+    Alias "/netcdf" "/mnt/talltowers"
+    <Directory "/mnt/talltowers">
       Options Indexes MultiViews FollowSymLinks
       AllowOverride All
     </Directory>
