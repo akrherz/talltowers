@@ -1,4 +1,0 @@
-pandas
-psycopg2
-pytest
-pytz
