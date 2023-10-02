@@ -7,18 +7,14 @@ make plot of recent data from talltowers project, for display on website.
 
 @author: joe
 """
-import os
-import json
-import datetime
+import matplotlib
 import pandas as pd
-from dateutil import tz
 import psycopg2
 from pandas.io.sql import read_sql
-import matplotlib
 
 matplotlib.use("agg")  # Must be before importing matplotlib.pyplot.
-import matplotlib.pyplot as plt  # NOPEP8
 import matplotlib.dates as mdates  # NOPEP8
+import matplotlib.pyplot as plt  # NOPEP8
 import pytz
 
 TZ = pytz.timezone("America/Chicago")

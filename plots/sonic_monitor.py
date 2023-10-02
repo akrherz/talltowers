@@ -4,12 +4,13 @@ make plot of recent data from talltowers project, for display on website.
 
 @author: joe
 """
+import datetime
+import json
 import os
 import sys
-import json
-import datetime
-from dateutil import tz
+
 import psycopg2
+from dateutil import tz
 from pandas.io.sql import read_sql
 from pandas.plotting import register_matplotlib_converters
 from pyiem.plot.use_agg import plt

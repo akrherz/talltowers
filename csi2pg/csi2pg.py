@@ -8,28 +8,29 @@ See `README.md` for more details on this code
 # pylint: disable=too-many-lines
 
 import argparse  # use command line arguments
-import os  # os.path.join()  &  os.listdir()
 import datetime  # datetime & timedelta
-import sys  # sys.exit() & email (tail -5) & sys.path.append
-import struct  # unpacking binary
 import ftplib  # deleting file from datalogger
 import json
+
+# logging
+import logging.config
+import os  # os.path.join()  &  os.listdir()
 import re
 
 # email
 import smtplib
+import struct  # unpacking binary
+import subprocess
+import sys  # sys.exit() & email (tail -5) & sys.path.append
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import subprocess
 
-# logging
-import logging.config
+import numpy as np
 
 # third party
 import pandas as pd
-import numpy as np
-import pytz
 import psycopg2
+import pytz
 
 # local directory stuff
 from log_conf import logger_configurator  # @UnresolvedImport

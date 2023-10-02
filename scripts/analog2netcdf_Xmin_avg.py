@@ -1,15 +1,16 @@
 """Create a monthly netcdf file with X minute windowed stats"""
 from __future__ import print_function
-import sys
+
 import datetime
 import json
+import sys
 
 import netCDF4
-import pytz
-import psycopg2.extras
-from tqdm import tqdm
 import numpy as np
+import psycopg2.extras
+import pytz
 from pyiem.util import utc
+from tqdm import tqdm
 
 CONFIG = json.load(open("../config/settings.json", "r"))
 PGCONN = psycopg2.connect(

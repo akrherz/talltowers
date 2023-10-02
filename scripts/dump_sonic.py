@@ -1,4 +1,3 @@
-import datetime
 import psycopg2
 
 pgconn = psycopg2.connect(

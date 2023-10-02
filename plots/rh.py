@@ -1,8 +1,9 @@
-import psycopg2
-import matplotlib.pyplot as plt
-from pandas.io.sql import read_sql
 import datetime
+
+import matplotlib.pyplot as plt
 import numpy as np
+import psycopg2
+from pandas.io.sql import read_sql
 from scipy.interpolate import NearestNDInterpolator
 
 pgconn = psycopg2.connect(

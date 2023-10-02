@@ -1,8 +1,9 @@
 """Test csi2pg."""
-import os
 import datetime
+import os
 
 import pytz
+
 import csi2pg
 
 DATAROOT = os.path.join(os.path.dirname(__file__), "../examples")
