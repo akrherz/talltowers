@@ -6,6 +6,10 @@ on:
         branches: [ main ]
 jobs:
   build-linux:
+    defaults:
+      run:
+        # Ensures environment gets sourced right
+        shell: bash -l {0}  
     name: Python (${{ matrix.PYTHON_VERSION }})
     runs-on: ubuntu-latest
     strategy:
