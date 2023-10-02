@@ -6,16 +6,16 @@ cd 963/
 -rw-rw-rw- triton_963_2018-07-31-16-50_operational.csv
 -rw-rw-rw- triton_963_2018-07-31-16-50_standard.csv
 """
-import re
-import os
-import sys
 import datetime
 import json
+import os
+import re
+import sys
 from ftplib import FTP_TLS
 
 import pandas as pd
-import pytz
 import psycopg2
+import pytz
 
 COLRE = re.compile("^(?P<elev>[0-9]+)m (?P<name>.*?)-?(?P<extra>[ABC])?$")
 CONFIG = json.load(open("../config/settings.json", "r"))

@@ -1,9 +1,10 @@
 """Rename the files in the consumed/ folder into a tree"""
-from csi2pg import decode_filename
-import sys
 import glob
-import os
 import json
+import os
+import sys
+
+from csi2pg import decode_filename
 
 
 def main(argv):

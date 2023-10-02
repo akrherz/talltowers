@@ -4,8 +4,8 @@ Created on Fri Apr  1 00:08:50 2016
 
 @author: joe
 """
-import os
 import json
+import os
 
 CONFIG = json.load(
     open(os.path.dirname(__file__) + "/../config/settings.json", "r")

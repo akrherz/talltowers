@@ -1,15 +1,16 @@
 """Generate a standard netcdf file with the tall towers data!"""
 from __future__ import print_function
-import sys
+
 import datetime
 import json
+import sys
 
 import netCDF4
-import pytz
-import psycopg2
-from tqdm import tqdm
 import numpy as np
+import psycopg2
+import pytz
 from pandas.io.sql import read_sql
+from tqdm import tqdm
 
 CONFIG = json.load(open("../config/settings.json", "r"))
 PGCONN = psycopg2.connect(

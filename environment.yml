@@ -1,0 +1,6 @@
+dependencies:
+ - pandas
+ - psycopg
+ - psycopg2
+ - pytest
+ - pytz

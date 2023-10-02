@@ -5,14 +5,15 @@ make plot of recent data from talltowers project, for display on website.
 @author: joe
 """
 
-import os
-import json
 import datetime
-from dateutil import tz
+import json
+import os
+
+import matplotlib.dates as mdates  # NOPEP8
 import psycopg2
+from dateutil import tz
 from pandas.io.sql import read_sql
 from pandas.plotting import register_matplotlib_converters
-import matplotlib.dates as mdates  # NOPEP8
 from pyiem.plot.use_agg import plt
 
 register_matplotlib_converters()

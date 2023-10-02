@@ -1,7 +1,8 @@
 """Convert our fancy NetCDF file to CSV"""
 from __future__ import print_function
-import sys
+
 import datetime
+import sys
 
 import netCDF4
 import pandas as pd
