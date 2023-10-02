@@ -48,5 +48,7 @@ jobs:
 
     - name: Run Tests
       run: |
+        set -e
         cat config/settings-in.json |  sed -e "s,{{path}},`pwd`,g" | tee config/settings.json > /dev/null
-        cd csi2pg; pytest test_csi2pg.py
+        cd csi2pg
+        pytest test_csi2pg.py
