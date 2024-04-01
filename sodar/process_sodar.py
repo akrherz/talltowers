@@ -6,6 +6,7 @@ cd 963/
 -rw-rw-rw- triton_963_2018-07-31-16-50_operational.csv
 -rw-rw-rw- triton_963_2018-07-31-16-50_standard.csv
 """
+
 import datetime
 import json
 import os

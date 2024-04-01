@@ -4,6 +4,7 @@ make plot of recent data from talltowers project, for display on website.
 
 @author: joe
 """
+
 import datetime
 import json
 import os

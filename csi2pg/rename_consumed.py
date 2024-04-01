@@ -1,4 +1,5 @@
 """Rename the files in the consumed/ folder into a tree"""
+
 import glob
 import json
 import os
