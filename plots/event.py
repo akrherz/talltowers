@@ -7,6 +7,7 @@ make plot of recent data from talltowers project, for display on website.
 
 @author: joe
 """
+
 import matplotlib.dates as mdates  # NOPEP8
 import matplotlib.pyplot as plt  # NOPEP8
 import pandas as pd
