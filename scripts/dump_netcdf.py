@@ -1,4 +1,5 @@
 """Generate a standard netcdf file with the tall towers data!"""
+
 from __future__ import print_function
 
 import datetime

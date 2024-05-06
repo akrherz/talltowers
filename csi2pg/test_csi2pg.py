@@ -1,4 +1,5 @@
 """Test csi2pg."""
+
 import datetime
 import os
 
