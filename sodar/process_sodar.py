@@ -21,9 +21,9 @@ import pytz
 COLRE = re.compile("^(?P<elev>[0-9]+)m (?P<name>.*?)-?(?P<extra>[ABC])?$")
 CONFIG = json.load(open("../config/settings.json", "r"))
 PGCONN = psycopg2.connect(
-    (
-        "host={hostname} dbname={dbname} " "user={dbuser} password={dbpass}"
-    ).format(**CONFIG["dbconn"])
+    ("host={hostname} dbname={dbname} user={dbuser} password={dbpass}").format(
+        **CONFIG["dbconn"]
+    )
 )
 
 
