@@ -126,7 +126,7 @@ for key, value in plot_dict.items():
             # set legend and titles
             lgnd = ax.legend(loc="best")
             plot_title = (
-                "One minute average of last {} hours " "of {} from {}"
+                "One minute average of last {} hours of {} from {}"
             ).format(hours_back, key, site.upper())
             ax.set_title(plot_title, fontsize=22)
             # set texts with times

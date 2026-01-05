@@ -15,9 +15,9 @@ from tqdm import tqdm
 
 CONFIG = json.load(open("../config/settings.json", "r"))
 PGCONN = psycopg2.connect(
-    (
-        "host={hostname} dbname={dbname} " "user={dbuser} password={dbpass}"
-    ).format(**CONFIG["dbconn"])
+    ("host={hostname} dbname={dbname} user={dbuser} password={dbpass}").format(
+        **CONFIG["dbconn"]
+    )
 )
 DT1970 = datetime.datetime(1970, 1, 1).replace(tzinfo=pytz.utc)
 
